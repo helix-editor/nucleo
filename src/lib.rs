@@ -16,19 +16,24 @@ mod normalize;
 
 pub use config::{CaseMatching, CharClass, MatcherConfig};
 
+use crate::config::{
+    BONUS_BOUNDARY, BONUS_CONSECUTIVE, BONUS_FIRST_CHAR_MULTIPLIER, PENALTY_GAP_EXTENSION,
+    PENALTY_GAP_START, SCORE_MATCH,
+};
+
 const MAX_MATRIX_SIZE: usize = 75 * 1024; // 300KB
 const MAX_HAYSTACK_LEN: usize = 8192; // 64KB
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct MatrixCell {
-    score: i16,
+    score: u16,
     consecutive_chars: u16,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct HaystackChar {
     char: char,
-    bonus: i16,
+    bonus: u16,
 }
 
 pub struct Matcher {
@@ -134,7 +139,7 @@ impl Matcher {
         );
     }
 
-    pub fn fuzzy_match(&mut self, query: &Query, mut haystack: &str) -> Option<i32> {
+    pub fn fuzzy_match(&mut self, query: &Query, mut haystack: &str) -> Option<u16> {
         if haystack.len() > u32::MAX as usize {
             haystack = &haystack[..u32::MAX as usize]
         }
@@ -156,7 +161,7 @@ impl Matcher {
         query: &Query,
         mut haystack: &str,
         indicies: &mut Vec<u32>,
-    ) -> Option<i32> {
+    ) -> Option<u16> {
         if haystack.len() > u32::MAX as usize {
             haystack = &haystack[..u32::MAX as usize]
         }
@@ -236,7 +241,7 @@ impl Matcher {
         query: &Query,
         haystack: &str,
         indicies: &mut Vec<u32>,
-    ) -> Option<i32> {
+    ) -> Option<u16> {
         let (start, end) = self.prefilter(query, haystack)?;
         self.fuzzy_matcher_v1_with_prefilter::<INDICIES, ASCII_ONLY>(
             query, haystack, start, end, indicies,
@@ -250,7 +255,7 @@ impl Matcher {
         mut start: usize,
         mut end: usize,
         indicies: &mut Vec<u32>,
-    ) -> Option<i32> {
+    ) -> Option<u16> {
         let first_char_end = if ASCII_ONLY { start + 1 } else { end };
         if !ASCII_ONLY && query.needle_chars.len() != 1 {
             let mut needle_iter = query.needle_chars[1..].iter().copied();
@@ -297,7 +302,7 @@ impl Matcher {
         match_start: usize,
         match_end: usize,
         indicies: &mut Vec<u32>,
-    ) -> i32 {
+    ) -> u16 {
         if INDICIES {
             indicies.reserve(query.needle_chars.len());
         }
@@ -307,10 +312,10 @@ impl Matcher {
             .map(|c| self.config.char_class(c))
             .unwrap_or(self.config.inital_char_class);
         let mut needle_idx = 0;
-        let mut score = 0i32;
+        let mut score = 0u16;
         let mut in_gap = false;
         let mut consecutive = 0;
-        let mut first_bonus = 0i16;
+        let mut first_bonus = 0u16;
         for (i, mut c) in text[match_start..match_end].char_indices() {
             let class = self.config.char_class(c);
             if (ASCII_ONLY || class == CharClass::Upper) && query.ignore_case {
@@ -323,33 +328,36 @@ impl Matcher {
                 if INDICIES {
                     indicies.push(i as u32)
                 }
-                score += self.config.score_match as i32;
+                score += SCORE_MATCH;
                 let mut bonus = self.config.bonus_for(prev_class, class);
                 if consecutive == 0 {
                     first_bonus = bonus
                 } else {
                     // Break consecutive chunk
-                    if bonus >= self.config.bonus_boundary && bonus > first_bonus {
-                        first_bonus = bonus
+                    if bonus > first_bonus {
+                        if bonus >= BONUS_BOUNDARY {
+                            first_bonus = bonus;
+                        } else {
+                            bonus = max(bonus, BONUS_CONSECUTIVE);
+                        }
+                    } else {
+                        bonus = max(first_bonus, BONUS_CONSECUTIVE);
                     }
-                    bonus = max(
-                        max(bonus, first_bonus),
-                        self.config.bonus_first_char_multiplier,
-                    );
                 }
                 if needle_idx == 0 {
-                    bonus *= self.config.bonus_first_char_multiplier
+                    bonus *= BONUS_FIRST_CHAR_MULTIPLIER;
                 }
-                score += bonus as i32;
+                score += bonus;
                 needle_idx += 1;
                 in_gap = false;
                 consecutive += 1;
             } else {
-                if in_gap {
-                    score += self.config.score_gap_extension as i32
+                let penalty = if in_gap {
+                    PENALTY_GAP_EXTENSION
                 } else {
-                    score += self.config.score_gap_start as i32
-                }
+                    PENALTY_GAP_START
+                };
+                score = score.saturating_sub(penalty);
                 in_gap = true;
                 consecutive = 0;
                 first_bonus = 0;
@@ -365,7 +373,7 @@ impl Matcher {
         query: &Query,
         text: &str,
         indicies: &mut Vec<u32>,
-    ) -> Option<i32> {
+    ) -> Option<u16> {
         let (start, prefilter_end) = self.prefilter(query, text)?;
         let text_len = text.len() - start;
         // fallback to v1 algorithms for long haystacks
@@ -407,7 +415,7 @@ impl Matcher {
         let mut max_score = 0;
         let mut max_score_pos = 0;
         let mut in_gap = false;
-        let mut prev_score = 0;
+        let mut prev_score = 0u16;
         let mut matched = false;
 
         let first_needle_char = query.needle_chars[0];
@@ -438,25 +446,24 @@ impl Matcher {
                 last_matched_idx = i;
             }
             if c == first_needle_char {
-                let score =
-                    self.config.score_match + bonus * self.config.bonus_first_char_multiplier;
+                let score = SCORE_MATCH + bonus * BONUS_FIRST_CHAR_MULTIPLIER;
                 matrix_cell.consecutive_chars = 1;
                 if query.needle_chars.len() == 1 && score > max_score {
                     max_score = score;
                     max_score_pos = i;
                     // can't get better than this
-                    if bonus >= self.config.bonus_boundary {
+                    if bonus >= BONUS_BOUNDARY {
                         break;
                     }
                 }
                 in_gap = false;
             } else {
-                let gap_score = if in_gap {
-                    self.config.score_gap_extension
+                let gap_penalty = if in_gap {
+                    PENALTY_GAP_EXTENSION
                 } else {
-                    self.config.score_gap_start
+                    PENALTY_GAP_START
                 };
-                matrix_cell.score = max(0, gap_score + prev_score);
+                matrix_cell.score = prev_score.saturating_sub(gap_penalty);
                 matrix_cell.consecutive_chars = 0;
                 in_gap = true;
             }
@@ -468,7 +475,7 @@ impl Matcher {
         }
         if query.needle_chars.len() == 1 {
             indicies.push(max_score_pos as u32);
-            return Some(max_score as i32);
+            return Some(max_score);
         }
         assert_eq!(
             self.first_needle_occurance[0], 0,
@@ -517,10 +524,10 @@ impl Matcher {
             }
         }
 
-        Some(max_score as i32)
+        Some(max_score)
     }
 
-    fn popultate_matrix(&mut self, haystack_len: usize, query: &Query) -> (i16, u16) {
+    fn popultate_matrix(&mut self, haystack_len: usize, query: &Query) -> (u16, u16) {
         let mut max_score = 0;
         let mut max_score_end = 0;
         let mut iter = query
@@ -548,24 +555,28 @@ impl Matcher {
                 .enumerate()
             {
                 let col = j + first_occurance as usize;
-                let gap_score = if in_gap {
-                    self.config.score_gap_extension
+                let gap_penalty = if in_gap {
+                    PENALTY_GAP_EXTENSION
                 } else {
-                    self.config.score_gap_start
+                    PENALTY_GAP_START
                 };
                 let mut score1 = 0;
-                let score2 = prev_matrix_cell.score + gap_score;
+                let score2 = prev_matrix_cell.score.saturating_sub(gap_penalty);
                 let mut consecutive = 0;
                 if haystack_char.char == needle_char {
-                    score1 = diag_matrix_cell.score + self.config.score_match;
+                    score1 = diag_matrix_cell.score + SCORE_MATCH;
                     let mut bonus = haystack_char.bonus;
                     consecutive = diag_matrix_cell.consecutive_chars + 1;
                     if consecutive > 1 {
                         let first_bonus = self.haystack[col - consecutive as usize].bonus;
-                        if bonus > self.config.bonus_boundary && bonus > first_bonus {
-                            consecutive = 1
+                        if bonus > first_bonus {
+                            if bonus > BONUS_BOUNDARY {
+                                consecutive = 1
+                            } else {
+                                bonus = max(bonus, BONUS_CONSECUTIVE)
+                            }
                         } else {
-                            bonus = max(bonus, max(self.config.bonus_consecutive, first_bonus))
+                            bonus = max(first_bonus, BONUS_CONSECUTIVE)
                         }
                     }
                     if score1 + bonus < score2 {
