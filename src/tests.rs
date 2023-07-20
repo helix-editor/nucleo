@@ -22,7 +22,7 @@ pub fn assert_matches(
         config.set_match_paths();
     }
     let mut matcher = Matcher::new(config);
-    let mut indicies = Vec::new();
+    let mut indices = Vec::new();
     let mut needle_buf = Vec::new();
     let mut haystack_buf = Vec::new();
     for &(haystack, needle, start, end, mut score) in cases {
@@ -35,8 +35,8 @@ pub fn assert_matches(
         let haystack = Utf32Str::new(haystack, &mut haystack_buf);
         score += needle.len() as u16 * SCORE_MATCH;
 
-        let res = matcher.fuzzy_indicies(haystack, needle, &mut indicies);
-        let match_chars: Vec<_> = indicies
+        let res = matcher.fuzzy_indices(haystack, needle, &mut indices);
+        let match_chars: Vec<_> = indices
             .iter()
             .map(|&i| haystack.get(i).normalize(&matcher.config))
             .collect();
@@ -47,9 +47,9 @@ pub fn assert_matches(
             Some(score),
             "{needle:?} did  not match {haystack:?}: {match_chars:?}"
         );
-        assert_eq!(match_chars, needle_chars, "match indicies are incorrect");
+        assert_eq!(match_chars, needle_chars, "match indices are incorrect");
         assert_eq!(
-            indicies.first().copied()..indicies.last().map(|&i| i + 1),
+            indices.first().copied()..indices.last().map(|&i| i + 1),
             Some(start)..Some(end),
             "{needle:?} match {haystack:?}[{start}..{end}]"
         );

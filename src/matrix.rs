@@ -155,7 +155,7 @@ where
 
 pub(crate) struct Matrix<'a, C: Char> {
     pub haystack: &'a mut [C],
-    // stored as a seperate array instead of struct
+    // stored as a separate array instead of struct
     // to avoid padding sine char is too large and u8 too small :/
     pub bonus: &'a mut [u16],
     pub row_offs: &'a mut [u16],
@@ -264,10 +264,10 @@ impl MatrixSlab {
             return None;
         }
         unsafe {
-            // safetly: this allocation is valid for MATRIX_ALLOC_LAYOUT
+            // safely: this allocation is valid for MATRIX_ALLOC_LAYOUT
             let (haystack, bonus, rows, cells) = matrix_layout.fieds_from_ptr(self.0);
-            // copy haystack before creating refernces to ensure we donu't crate
-            // refrences to invalid chars (which may or may not be UB)
+            // copy haystack before creating references to ensure we donu't crate
+            // references to invalid chars (which may or may not be UB)
             haystack_
                 .as_ptr()
                 .copy_to_nonoverlapping(haystack as *mut _, haystack_.len());

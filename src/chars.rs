@@ -64,7 +64,7 @@ impl Char for AsciiChar {
             CharClass::Number
         } else if c.is_ascii_whitespace() {
             CharClass::Whitespace
-        } else if config.delimeter_chars.contains(&c) {
+        } else if config.delimiter_chars.contains(&c) {
             CharClass::Delimiter
         } else {
             CharClass::NonWord

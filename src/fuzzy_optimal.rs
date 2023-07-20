@@ -10,39 +10,39 @@ use crate::score::{
 use crate::{Matcher, MatcherConfig};
 
 impl Matcher {
-    pub(crate) fn fuzzy_match_optimal<const INDICIES: bool, H: Char + PartialEq<N>, N: Char>(
+    pub(crate) fn fuzzy_match_optimal<const INDICES: bool, H: Char + PartialEq<N>, N: Char>(
         &mut self,
         haystack: &[H],
         needle: &[N],
         start: usize,
         greedy_end: usize,
         end: usize,
-        indicies: &mut Vec<u32>,
+        indices: &mut Vec<u32>,
     ) -> Option<u16> {
         // construct a matrix (and copy the haystack), the matrix and haystack size are bounded
         // to avoid the slow O(mn) time complexity for large inputs. Furthermore, it allows
-        // us to treat needle indecies as u16
+        // us to treat needle indices as u16
         let Some(mut matrix) = self.slab.alloc(&haystack[start..end], needle.len()) else {
-            return self.fuzzy_match_greedy::<INDICIES, H, N>(
+            return self.fuzzy_match_greedy::<INDICES, H, N>(
                 haystack,
                 needle,
                 start,
                 greedy_end,
-                indicies,
+                indices,
             );
         };
 
         let prev_class = start
             .checked_sub(1)
             .map(|i| haystack[i].char_class(&self.config))
-            .unwrap_or(self.config.inital_char_class);
+            .unwrap_or(self.config.initial_char_class);
         let (max_score_pos, max_score, matched) = matrix.setup(needle, prev_class, &self.config);
-        // this only happend with unicode haystacks, for ASCII the prefilter handles all rejects
+        // this only happened with unicode haystacks, for ASCII the prefilter handles all rejects
         if !matched {
             return None;
         }
         if needle.len() == 1 {
-            indicies.push(max_score_pos as u32);
+            indices.push(max_score_pos as u32);
             return Some(max_score);
         }
         debug_assert_eq!(
@@ -52,8 +52,8 @@ impl Matcher {
 
         // populate the matrix and find the best score
         let (max_score, best_match_end) = matrix.populate_matrix(needle);
-        if INDICIES {
-            matrix.reconstruct_optimal_path(needle, start as u32, indicies, best_match_end);
+        if INDICES {
+            matrix.reconstruct_optimal_path(needle, start as u32, indices, best_match_end);
         }
         Some(max_score)
     }
@@ -224,12 +224,12 @@ impl<H: Char> Matrix<'_, H> {
         &self,
         needle: &[N],
         start: u32,
-        indicies: &mut Vec<u32>,
+        indices: &mut Vec<u32>,
         best_match_end: u16,
     ) {
-        indicies.resize(needle.len(), 0);
+        indices.resize(needle.len(), 0);
 
-        let mut row_iter = self.rows_rev().zip(indicies.iter_mut().rev()).peekable();
+        let mut row_iter = self.rows_rev().zip(indices.iter_mut().rev()).peekable();
         let (mut row, mut matched_col_idx) = row_iter.next().unwrap();
         let mut next_row: Option<MatrixRow> = None;
         let mut col = best_match_end;

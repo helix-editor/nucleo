@@ -1,4 +1,4 @@
-// sadly this doens't optmimzie well currently
+// sadly ranges don't optmimzie well
 #![allow(clippy::manual_range_contains)]
 
 mod chars;
@@ -63,7 +63,7 @@ impl Matcher {
         self.fuzzy_matcher_impl::<false>(haystack, needle, &mut Vec::new())
     }
 
-    pub fn fuzzy_indicies(
+    pub fn fuzzy_indices(
         &mut self,
         haystack: Utf32Str<'_>,
         needle: Utf32Str<'_>,
@@ -73,7 +73,7 @@ impl Matcher {
         self.fuzzy_matcher_impl::<true>(haystack, needle, indidies)
     }
 
-    fn fuzzy_matcher_impl<const INDICIES: bool>(
+    fn fuzzy_matcher_impl<const INDICES: bool>(
         &mut self,
         haystack: Utf32Str<'_>,
         needle_: Utf32Str<'_>,
@@ -92,7 +92,7 @@ impl Matcher {
         match (haystack, needle_) {
             (Utf32Str::Ascii(haystack), Utf32Str::Ascii(needle)) => {
                 let (start, greedy_end, end) = self.prefilter_ascii(haystack, needle)?;
-                self.fuzzy_match_optimal::<INDICIES, AsciiChar, AsciiChar>(
+                self.fuzzy_match_optimal::<INDICES, AsciiChar, AsciiChar>(
                     AsciiChar::cast(haystack),
                     AsciiChar::cast(needle),
                     start,
@@ -108,7 +108,7 @@ impl Matcher {
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Ascii(needle)) => {
                 let (start, end) = self.prefilter_non_ascii(haystack, needle_)?;
-                self.fuzzy_match_optimal::<INDICIES, char, AsciiChar>(
+                self.fuzzy_match_optimal::<INDICES, char, AsciiChar>(
                     haystack,
                     AsciiChar::cast(needle),
                     start,
@@ -119,7 +119,7 @@ impl Matcher {
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Unicode(needle)) => {
                 let (start, end) = self.prefilter_non_ascii(haystack, needle_)?;
-                self.fuzzy_match_optimal::<INDICIES, char, char>(
+                self.fuzzy_match_optimal::<INDICES, char, char>(
                     haystack,
                     needle,
                     start,
@@ -131,11 +131,11 @@ impl Matcher {
         }
     }
 
-    // pub fn fuzzy_indicies(
+    // pub fn fuzzy_indices(
     //     &mut self,
     //     query: &Query,
     //     mut haystack: Utf32Str<'_>,
-    //     indicies: &mut Vec<u32>,
+    //     indices: &mut Vec<u32>,
     // ) -> Option<u16> {
     //     if haystack.len() > u32::MAX as usize {
     //         haystack = &haystack[..u32::MAX as usize]
@@ -146,14 +146,14 @@ impl Matcher {
     //     );
     //     if self.config.use_v1 {
     //         if query.is_ascii && !self.config.normalize {
-    //             self.fuzzy_matcher_v1::<true, true>(query, haystack, indicies)
+    //             self.fuzzy_matcher_v1::<true, true>(query, haystack, indices)
     //         } else {
-    //             self.fuzzy_matcher_v1::<true, false>(query, haystack, indicies)
+    //             self.fuzzy_matcher_v1::<true, false>(query, haystack, indices)
     //         }
     //     } else if query.is_ascii && !self.config.normalize {
-    //         self.fuzzy_matcher_v2::<true, true>(query, haystack, indicies)
+    //         self.fuzzy_matcher_v2::<true, true>(query, haystack, indices)
     //     } else {
-    //         self.fuzzy_matcher_v2::<true, false>(query, haystack, indicies)
+    //         self.fuzzy_matcher_v2::<true, false>(query, haystack, indices)
     //     }
     // }
 }

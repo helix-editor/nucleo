@@ -13,7 +13,7 @@ use std::slice;
 /// matching itself. Furthermore there are a lot of exta optimizations available
 /// for ascii only text (but checking during each match has too much overhead).
 ///
-/// Ofcourse this comes at exta memory cost as we usally still need the ut8
+/// Ofcourse this comes at exta memory cost as we usually still need the ut8
 /// encoded variant for rendenring. In the (dominant) case of ascii-only text
 /// we don't require a copy. Furthermore fuzzy matching usually is applied while
 /// the user is typing on the fly so the same item is potentially matched many
@@ -24,13 +24,13 @@ use std::slice;
 /// char buffer around that is filled with the presegmented chars
 ///
 /// Another advantage of this approach is that the matcher will naturally
-/// produce char indecies (instead of utf8 offsets) annyway. With a
-/// codepoint basec representation like this the indecies can be used
+/// produce char indices (instead of utf8 offsets) annyway. With a
+/// codepoint basec representation like this the indices can be used
 /// directly
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Debug)]
 pub enum Utf32Str<'a> {
     /// A string represented as ASCII encoded bytes.
-    /// Correctness invariant: must only contain vaild ASCII (<=127)
+    /// Correctness invariant: must only contain valid ASCII (<=127)
     Ascii(&'a [u8]),
     /// A string represented as an array of unicode codepoints (basically UTF-32).
     Unicode(&'a [char]),
@@ -75,7 +75,7 @@ impl<'a> Utf32Str<'a> {
     }
 
     /// Same as `slice` but accepts a u32 range for convenicene sine
-    /// those are the indecies returned by the matcher
+    /// those are the indices returned by the matcher
     #[inline]
     pub fn slice_u32(&self, range: impl RangeBounds<u32>) -> Utf32Str {
         let start = match range.start_bound() {

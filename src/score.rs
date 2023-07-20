@@ -69,22 +69,22 @@ impl Matcher {
         self.config.bonus_for(prev_class, class)
     }
 
-    pub(crate) fn calculate_score<const INDICIES: bool, H: Char + PartialEq<N>, N: Char>(
+    pub(crate) fn calculate_score<const INDICES: bool, H: Char + PartialEq<N>, N: Char>(
         &mut self,
         haystack: &[H],
         needle: &[N],
         start: usize,
         end: usize,
-        indicies: &mut Vec<u32>,
+        indices: &mut Vec<u32>,
     ) -> u16 {
-        if INDICIES {
-            indicies.reserve(needle.len());
+        if INDICES {
+            indices.reserve(needle.len());
         }
 
         let mut prev_class = start
             .checked_sub(1)
             .map(|i| haystack[i].char_class(&self.config))
-            .unwrap_or(self.config.inital_char_class);
+            .unwrap_or(self.config.initial_char_class);
         let mut needle_iter = needle.iter();
         let mut needle_char = *needle_iter.next().unwrap();
 
@@ -92,8 +92,8 @@ impl Matcher {
         let mut consecutive = 1;
 
         // unrolled the firs iteration to make applying the first char multiplier less akward
-        if INDICIES {
-            indicies.push(start as u32)
+        if INDICES {
+            indices.push(start as u32)
         }
         let mut first_bonus = self.bonus_for(prev_class, haystack[0].char_class(&self.config));
         let mut score = SCORE_MATCH + first_bonus * BONUS_FIRST_CHAR_MULTIPLIER;
@@ -102,8 +102,8 @@ impl Matcher {
             let class = c.char_class(&self.config);
             let c = c.normalize(&self.config);
             if c == needle_char {
-                if INDICIES {
-                    indicies.push(i as u32 + start as u32)
+                if INDICES {
+                    indices.push(i as u32 + start as u32)
                 }
                 let mut bonus = self.bonus_for(prev_class, class);
                 if consecutive == 0 {
