@@ -120,7 +120,7 @@ impl Char for char {
             return (c.0 as char, class);
         }
         let char_class = char_class_non_ascii(self);
-        if char_class == CharClass::Upper {
+        if char_class == CharClass::Upper && config.ignore_case {
             self = CASE_FOLDING_SIMPLE
                 .binary_search_by_key(&self, |(upper, _)| *upper)
                 .map_or(self, |idx| CASE_FOLDING_SIMPLE[idx].1)
@@ -136,7 +136,10 @@ impl Char for char {
         if config.normalize {
             self = normalize::normalize(self);
         }
-        to_lower_case(self)
+        if config.ignore_case {
+            self = to_lower_case(self)
+        }
+        self
     }
 }
 

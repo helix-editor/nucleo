@@ -178,18 +178,26 @@ impl<H: Char> Matrix<'_, H> {
                 } else {
                     PENALTY_GAP_START
                 };
-                let mut score1 = 0;
-                let score2 = prev_matrix_cell.score.saturating_sub(gap_penalty);
+                // we calculate two scores:
+                // * one for transversing the matrix horizontially (no match at
+                //   the current char)
+                // * one for transversing the matrix diagonally (match at the
+                //   current char)
+                // the maximum of those two scores is used
+                let mut score_diag = 0;
+                let score_hory = prev_matrix_cell.score.saturating_sub(gap_penalty);
 
                 let mut consecutive = 0;
                 if haystack_char.char == needle_char {
-                    score1 = diag_matrix_cell.score + SCORE_MATCH;
+                    // we have a match at the current char
+                    score_diag = diag_matrix_cell.score + SCORE_MATCH;
                     let mut bonus = haystack_char.bonus;
                     consecutive = diag_matrix_cell.consecutive_chars + 1;
                     if consecutive > 1 {
                         let first_bonus = self.bonus[col + 1 - consecutive as usize];
+                        println!("xoxo {bonus} {first_bonus} {consecutive}");
                         if bonus > first_bonus {
-                            if bonus > BONUS_BOUNDARY {
+                            if bonus >= BONUS_BOUNDARY {
                                 consecutive = 1
                             } else {
                                 bonus = max(bonus, BONUS_CONSECUTIVE)
@@ -198,15 +206,15 @@ impl<H: Char> Matrix<'_, H> {
                             bonus = max(first_bonus, BONUS_CONSECUTIVE)
                         }
                     }
-                    if score1 + bonus < score2 {
-                        score1 += haystack_char.bonus;
+                    if score_diag + bonus < score_hory {
+                        score_diag += haystack_char.bonus;
                         consecutive = 0;
                     } else {
-                        score1 += bonus;
+                        score_diag += bonus;
                     }
                 }
-                in_gap = score1 < score2;
-                let score = max(score1, score2);
+                in_gap = score_diag < score_hory;
+                let score = max(score_diag, score_hory);
                 if i == needle.len() - 1 && score > max_score {
                     max_score = score;
                     max_score_end = col as u16;
@@ -238,25 +246,31 @@ impl<H: Char> Matrix<'_, H> {
 
         loop {
             let score = row[col].score;
-            let mut score1 = 0;
-            let mut score2 = 0;
+            // we calculate two scores:
+            // * one for transversing the matrix horizontially (no match at
+            //   the current char)
+            // * one for transversing the matrix diagonally (match at the
+            //   current char)
+            // the maximum of those two scores is used
+            let mut score_diag = 0;
+            let mut score_horz = 0;
             if let Some(&(prev_row, _)) = row_iter.peek() {
                 if col >= prev_row.off {
-                    score1 = prev_row[col].score;
+                    score_diag = prev_row[col].score;
                 }
             }
             if col > row.off {
-                score2 = row[col - 1].score;
+                score_horz = row[col - 1].score;
             }
             let mut new_prefer_match = row[col].consecutive_chars > 1;
             if !new_prefer_match && col + 1 < haystack_len {
                 if let Some(next_row) = next_row {
-                    if col + 1 > next_row.off {
+                    if col + 1 >= next_row.off {
                         new_prefer_match = next_row[col + 1].consecutive_chars > 0
                     }
                 }
             }
-            if score > score1 && (score > score2 || score == score2 && prefer_match) {
+            if score > score_diag && (score > score_horz || score == score_horz && prefer_match) {
                 *matched_col_idx = col as u32 + start;
                 next_row = Some(row);
                 let Some(next) = row_iter.next() else {
@@ -267,5 +281,6 @@ impl<H: Char> Matrix<'_, H> {
             prefer_match = new_prefer_match;
             col -= 1;
         }
+        println!("{:#?}", self);
     }
 }

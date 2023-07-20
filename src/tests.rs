@@ -51,11 +51,14 @@ pub fn assert_matches(
             Some(score),
             "{needle:?} did  not match {haystack:?}: {match_chars:?}"
         );
-        assert_eq!(match_chars, needle_chars, "match indices are incorrect");
+        assert_eq!(
+            match_chars, needle_chars,
+            "match indices are incorrect {indices:?}"
+        );
         assert_eq!(
             indices.first().copied()..indices.last().map(|&i| i + 1),
             Some(start)..Some(end),
-            "{needle:?} match {haystack:?}[{start}..{end}]"
+            "{needle:?} match {haystack:?}"
         );
     }
 }
@@ -63,7 +66,7 @@ const BONUS_BOUNDARY_WHITE: u16 = MatcherConfig::DEFAULT.bonus_boundary_white;
 const BONUS_BOUNDARY_DELIMITER: u16 = MatcherConfig::DEFAULT.bonus_boundary_delimiter;
 
 #[test]
-fn test_v2_fuzzy() {
+fn test_fuzzy() {
     assert_matches(
         false,
         false,
@@ -172,6 +175,52 @@ fn test_v2_fuzzy() {
                     + BONUS_NON_WORD
                     + BONUS_BOUNDARY,
             ),
+        ],
+    );
+}
+
+#[test]
+fn test_fuzzy_case_sensitive() {
+    assert_matches(
+        false,
+        false,
+        true,
+        false,
+        &[
+            (
+                "fooBarbaz1",
+                "oBz",
+                2,
+                9,
+                BONUS_CAMEL123 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION * 3,
+            ),
+            (
+                "Foo/Bar/Baz",
+                "FBB",
+                0,
+                9,
+                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_DELIMITER * 2
+                    - 2 * PENALTY_GAP_START
+                    - 4 * PENALTY_GAP_EXTENSION,
+            ),
+            (
+                "FooBarBaz",
+                "FBB",
+                0,
+                7,
+                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_CAMEL123 * 2
+                    - 2 * PENALTY_GAP_START
+                    - 2 * PENALTY_GAP_EXTENSION,
+            ),
+            (
+                "FooBar Baz",
+                "FooB",
+                0,
+                4,
+                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE * 3,
+            ),
+            // Consecutive bonus updated
+            ("foo-bar", "o-ba", 2, 6, BONUS_BOUNDARY * 2 + BONUS_NON_WORD),
         ],
     );
 }
