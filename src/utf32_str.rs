@@ -1,5 +1,5 @@
 use std::ops::{Bound, RangeBounds};
-use std::slice;
+use std::{fmt, slice};
 
 /// A UTF32 encoded (char array) String that can be used as an input to fuzzy matching.
 ///
@@ -27,7 +27,7 @@ use std::slice;
 /// produce char indices (instead of utf8 offsets) annyway. With a
 /// codepoint basec representation like this the indices can be used
 /// directly
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum Utf32Str<'a> {
     /// A string represented as ASCII encoded bytes.
     /// Correctness invariant: must only contain valid ASCII (<=127)
@@ -114,6 +114,27 @@ impl<'a> Utf32Str<'a> {
             Utf32Str::Ascii(bytes) => Chars::Ascii(bytes.iter()),
             Utf32Str::Unicode(codepoints) => Chars::Unicode(codepoints.iter()),
         }
+    }
+}
+impl fmt::Debug for Utf32Str<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "\"")?;
+        for c in self.chars() {
+            for c in c.escape_debug() {
+                write!(f, "{c}")?
+            }
+        }
+        write!(f, "\"")
+    }
+}
+
+impl fmt::Display for Utf32Str<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "\"")?;
+        for c in self.chars() {
+            write!(f, "{c}")?
+        }
+        write!(f, "\"")
     }
 }
 

@@ -4,7 +4,7 @@ use crate::Matcher;
 impl Matcher {
     /// greedy fallback algorithm, much faster (linear time) but reported scores/indicies
     /// might not be the best match
-    pub(crate) fn fuzzy_match_greedy<const INDICES: bool, H: Char + PartialEq<N>, N: Char>(
+    pub(crate) fn fuzzy_match_greedy_<const INDICES: bool, H: Char + PartialEq<N>, N: Char>(
         &mut self,
         haystack: &[H],
         needle: &[N],

@@ -23,7 +23,7 @@ impl Matcher {
         // to avoid the slow O(mn) time complexity for large inputs. Furthermore, it allows
         // us to treat needle indices as u16
         let Some(mut matrix) = self.slab.alloc(&haystack[start..end], needle.len()) else {
-            return self.fuzzy_match_greedy::<INDICES, H, N>(
+            return self.fuzzy_match_greedy_::<INDICES, H, N>(
                 haystack,
                 needle,
                 start,

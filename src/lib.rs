@@ -91,7 +91,7 @@ impl Matcher {
         );
         match (haystack, needle_) {
             (Utf32Str::Ascii(haystack), Utf32Str::Ascii(needle)) => {
-                let (start, greedy_end, end) = self.prefilter_ascii(haystack, needle)?;
+                let (start, greedy_end, end) = self.prefilter_ascii(haystack, needle, false)?;
                 self.fuzzy_match_optimal::<INDICES, AsciiChar, AsciiChar>(
                     AsciiChar::cast(haystack),
                     AsciiChar::cast(needle),
@@ -107,7 +107,7 @@ impl Matcher {
                 None
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Ascii(needle)) => {
-                let (start, end) = self.prefilter_non_ascii(haystack, needle_)?;
+                let (start, end) = self.prefilter_non_ascii(haystack, needle_, false)?;
                 self.fuzzy_match_optimal::<INDICES, char, AsciiChar>(
                     haystack,
                     AsciiChar::cast(needle),
@@ -118,7 +118,7 @@ impl Matcher {
                 )
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Unicode(needle)) => {
-                let (start, end) = self.prefilter_non_ascii(haystack, needle_)?;
+                let (start, end) = self.prefilter_non_ascii(haystack, needle_, false)?;
                 self.fuzzy_match_optimal::<INDICES, char, char>(
                     haystack,
                     needle,
@@ -130,30 +130,77 @@ impl Matcher {
             }
         }
     }
+    pub fn fuzzy_match_greedy(
+        &mut self,
+        haystack: Utf32Str<'_>,
+        needle: Utf32Str<'_>,
+    ) -> Option<u16> {
+        assert!(haystack.len() <= u32::MAX as usize);
+        self.fuzzy_match_greedy_impl::<false>(haystack, needle, &mut Vec::new())
+    }
 
-    // pub fn fuzzy_indices(
-    //     &mut self,
-    //     query: &Query,
-    //     mut haystack: Utf32Str<'_>,
-    //     indices: &mut Vec<u32>,
-    // ) -> Option<u16> {
-    //     if haystack.len() > u32::MAX as usize {
-    //         haystack = &haystack[..u32::MAX as usize]
-    //     }
-    //     println!(
-    //         "start {haystack:?}, {:?} {} {}",
-    //         query.needle_chars, query.ignore_case, query.is_ascii
-    //     );
-    //     if self.config.use_v1 {
-    //         if query.is_ascii && !self.config.normalize {
-    //             self.fuzzy_matcher_v1::<true, true>(query, haystack, indices)
-    //         } else {
-    //             self.fuzzy_matcher_v1::<true, false>(query, haystack, indices)
-    //         }
-    //     } else if query.is_ascii && !self.config.normalize {
-    //         self.fuzzy_matcher_v2::<true, true>(query, haystack, indices)
-    //     } else {
-    //         self.fuzzy_matcher_v2::<true, false>(query, haystack, indices)
-    //     }
-    // }
+    pub fn fuzzy_indices_greedy(
+        &mut self,
+        haystack: Utf32Str<'_>,
+        needle: Utf32Str<'_>,
+        indidies: &mut Vec<u32>,
+    ) -> Option<u16> {
+        assert!(haystack.len() <= u32::MAX as usize);
+        self.fuzzy_match_greedy_impl::<true>(haystack, needle, indidies)
+    }
+
+    fn fuzzy_match_greedy_impl<const INDICES: bool>(
+        &mut self,
+        haystack: Utf32Str<'_>,
+        needle_: Utf32Str<'_>,
+        indidies: &mut Vec<u32>,
+    ) -> Option<u16> {
+        if needle_.len() > haystack.len() {
+            return None;
+        }
+        // if needle_.len() == haystack.len() {
+        //     return self.exact_match();
+        // }
+        assert!(
+            haystack.len() <= u32::MAX as usize,
+            "fuzzy matching is only support for up to 2^32-1 codepoints"
+        );
+        match (haystack, needle_) {
+            (Utf32Str::Ascii(haystack), Utf32Str::Ascii(needle)) => {
+                let (start, greedy_end, _) = self.prefilter_ascii(haystack, needle, true)?;
+                self.fuzzy_match_greedy_::<INDICES, AsciiChar, AsciiChar>(
+                    AsciiChar::cast(haystack),
+                    AsciiChar::cast(needle),
+                    start,
+                    greedy_end,
+                    indidies,
+                )
+            }
+            (Utf32Str::Ascii(_), Utf32Str::Unicode(_)) => {
+                // a purely ascii haystack can never be transformed to match
+                // a needle that contains non-ascii chars since we don't allow gaps
+                None
+            }
+            (Utf32Str::Unicode(haystack), Utf32Str::Ascii(needle)) => {
+                let (start, _) = self.prefilter_non_ascii(haystack, needle_, true)?;
+                self.fuzzy_match_greedy_::<INDICES, char, AsciiChar>(
+                    haystack,
+                    AsciiChar::cast(needle),
+                    start,
+                    start + 1,
+                    indidies,
+                )
+            }
+            (Utf32Str::Unicode(haystack), Utf32Str::Unicode(needle)) => {
+                let (start, _) = self.prefilter_non_ascii(haystack, needle_, true)?;
+                self.fuzzy_match_greedy_::<INDICES, char, char>(
+                    haystack,
+                    needle,
+                    start,
+                    start + 1,
+                    indidies,
+                )
+            }
+        }
+    }
 }

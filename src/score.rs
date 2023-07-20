@@ -78,6 +78,7 @@ impl Matcher {
         indices: &mut Vec<u32>,
     ) -> u16 {
         if INDICES {
+            indices.clear();
             indices.reserve(needle.len());
         }
 
@@ -95,15 +96,18 @@ impl Matcher {
         if INDICES {
             indices.push(start as u32)
         }
-        let mut first_bonus = self.bonus_for(prev_class, haystack[0].char_class(&self.config));
+        let class = haystack[start].char_class(&self.config);
+        let mut first_bonus = self.bonus_for(prev_class, class);
         let mut score = SCORE_MATCH + first_bonus * BONUS_FIRST_CHAR_MULTIPLIER;
+        prev_class = class;
+        needle_char = *needle_iter.next().unwrap_or(&needle_char);
 
         for (i, c) in haystack[start + 1..end].iter().enumerate() {
             let class = c.char_class(&self.config);
             let c = c.normalize(&self.config);
             if c == needle_char {
                 if INDICES {
-                    indices.push(i as u32 + start as u32)
+                    indices.push(i as u32 + start as u32 + 1)
                 }
                 let mut bonus = self.bonus_for(prev_class, class);
                 if consecutive == 0 {

@@ -35,7 +35,11 @@ pub fn assert_matches(
         let haystack = Utf32Str::new(haystack, &mut haystack_buf);
         score += needle.len() as u16 * SCORE_MATCH;
 
-        let res = matcher.fuzzy_indices(haystack, needle, &mut indices);
+        let res = if use_v1 {
+            matcher.fuzzy_indices_greedy(haystack, needle, &mut indices)
+        } else {
+            matcher.fuzzy_indices(haystack, needle, &mut indices)
+        };
         let match_chars: Vec<_> = indices
             .iter()
             .map(|&i| haystack.get(i).normalize(&matcher.config))

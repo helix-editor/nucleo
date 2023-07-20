@@ -27,31 +27,41 @@ impl Matcher {
         &self,
         mut haystack: &[u8],
         needle: &[u8],
+        only_greedy: bool,
     ) -> Option<(usize, usize, usize)> {
         if self.config.ignore_case {
             let start = find_ascii_ignore_case(needle[0], haystack)?;
-            let mut eager_end = start + 1;
-            haystack = &haystack[eager_end..];
+            let mut greedy_end = start + 1;
+            haystack = &haystack[greedy_end..];
             for &c in &needle[1..] {
                 let idx = find_ascii_ignore_case(c, haystack)? + 1;
-                eager_end += idx;
+                greedy_end += idx;
                 haystack = &haystack[idx..];
             }
-            let end = eager_end
-                + find_ascii_ignore_case_rev(*needle.last().unwrap(), haystack)
-                    .map_or(0, |i| i + 1);
-            Some((start, eager_end, end))
+            if only_greedy {
+                Some((start, greedy_end, greedy_end))
+            } else {
+                let end = greedy_end
+                    + find_ascii_ignore_case_rev(*needle.last().unwrap(), haystack)
+                        .map_or(0, |i| i + 1);
+                Some((start, greedy_end, end))
+            }
         } else {
             let start = memchr(needle[0], haystack)?;
-            let mut eager_end = start + 1;
-            haystack = &haystack[eager_end..];
+            let mut greedy_end = start + 1;
+            haystack = &haystack[greedy_end..];
             for &c in &needle[1..] {
                 let idx = memchr(c, haystack)? + 1;
-                eager_end += idx;
+                greedy_end += idx;
                 haystack = &haystack[idx..];
             }
-            let end = eager_end + memrchr(*needle.last().unwrap(), haystack).map_or(0, |i| i + 1);
-            Some((start, eager_end, end))
+            if only_greedy {
+                Some((start, greedy_end, greedy_end))
+            } else {
+                let end =
+                    greedy_end + memrchr(*needle.last().unwrap(), haystack).map_or(0, |i| i + 1);
+                Some((start, greedy_end, end))
+            }
         }
     }
 
@@ -59,18 +69,23 @@ impl Matcher {
         &self,
         haystack: &[char],
         needle: Utf32Str<'_>,
+        only_greedy: bool,
     ) -> Option<(usize, usize)> {
         let needle_char = needle.get(0);
         let start = haystack
             .iter()
             .position(|c| c.normalize(&self.config) == needle_char)?;
         let needle_char = needle.last();
-        let end = start + haystack.len()
-            - haystack[start..]
-                .iter()
-                .rev()
-                .position(|c| c.normalize(&self.config) == needle_char)?;
+        if only_greedy {
+            Some((start, start + 1))
+        } else {
+            let end = start + haystack.len()
+                - haystack[start..]
+                    .iter()
+                    .rev()
+                    .position(|c| c.normalize(&self.config) == needle_char)?;
 
-        Some((start, end))
+            Some((start, end))
+        }
     }
 }
