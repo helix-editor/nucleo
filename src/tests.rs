@@ -1,8 +1,10 @@
-use crate::config::{
+use crate::chars::Char;
+use crate::score::{
     BONUS_BOUNDARY, BONUS_CAMEL123, BONUS_CONSECUTIVE, BONUS_FIRST_CHAR_MULTIPLIER, BONUS_NON_WORD,
     PENALTY_GAP_EXTENSION, PENALTY_GAP_START, SCORE_MATCH,
 };
-use crate::{CaseMatching, Matcher, MatcherConfig};
+use crate::utf32_str::Utf32Str;
+use crate::{Matcher, MatcherConfig};
 
 pub fn assert_matches(
     use_v1: bool,
@@ -12,13 +14,8 @@ pub fn assert_matches(
     cases: &[(&str, &str, u32, u32, u16)],
 ) {
     let mut config = MatcherConfig {
-        use_v1,
         normalize,
-        case_matching: if case_sensitive {
-            CaseMatching::Respect
-        } else {
-            CaseMatching::Ignore
-        },
+        ignore_case: !case_sensitive,
         ..MatcherConfig::DEFAULT
     };
     if path {
@@ -26,11 +23,31 @@ pub fn assert_matches(
     }
     let mut matcher = Matcher::new(config);
     let mut indicies = Vec::new();
+    let mut needle_buf = Vec::new();
+    let mut haystack_buf = Vec::new();
     for &(haystack, needle, start, end, mut score) in cases {
-        score += needle.chars().count() as u16 * SCORE_MATCH;
-        let query = matcher.compile_query(needle);
-        let res = matcher.fuzzy_indicies(&query, haystack, &mut indicies);
-        assert_eq!(res, Some(score), "{needle:?} did not match {haystack:?}");
+        let needle = if !case_sensitive {
+            needle.to_lowercase()
+        } else {
+            needle.to_owned()
+        };
+        let needle = Utf32Str::new(&needle, &mut needle_buf);
+        let haystack = Utf32Str::new(haystack, &mut haystack_buf);
+        score += needle.len() as u16 * SCORE_MATCH;
+
+        let res = matcher.fuzzy_indicies(haystack, needle, &mut indicies);
+        let match_chars: Vec<_> = indicies
+            .iter()
+            .map(|&i| haystack.get(i).normalize(&matcher.config))
+            .collect();
+        let needle_chars: Vec<_> = needle.chars().collect();
+
+        assert_eq!(
+            res,
+            Some(score),
+            "{needle:?} did  not match {haystack:?}: {match_chars:?}"
+        );
+        assert_eq!(match_chars, needle_chars, "match indicies are incorrect");
         assert_eq!(
             indicies.first().copied()..indicies.last().map(|&i| i + 1),
             Some(start)..Some(end),

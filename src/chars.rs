@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug, Display};
+
 use crate::chars::case_fold::CASE_FOLDING_SIMPLE;
 use crate::MatcherConfig;
 
@@ -7,18 +9,52 @@ use crate::MatcherConfig;
 mod case_fold;
 mod normalize;
 
-pub trait Char: Copy + Eq + Ord + std::fmt::Debug {
+pub trait Char: Copy + Eq + Ord + fmt::Debug + fmt::Display {
     const ASCII: bool;
     fn char_class(self, config: &MatcherConfig) -> CharClass;
     fn char_class_and_normalize(self, config: &MatcherConfig) -> (Self, CharClass);
     fn normalize(self, config: &MatcherConfig) -> Self;
 }
 
-impl Char for u8 {
+/// repr tansparent wrapper around u8 with better formatting and PartialEq<char> implementation
+#[repr(transparent)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub(crate) struct AsciiChar(u8);
+
+impl AsciiChar {
+    pub fn cast(bytes: &[u8]) -> &[AsciiChar] {
+        unsafe { &*(bytes as *const [u8] as *const [AsciiChar]) }
+    }
+}
+
+impl fmt::Debug for AsciiChar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&(self.0 as char), f)
+    }
+}
+
+impl fmt::Display for AsciiChar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&(self.0 as char), f)
+    }
+}
+
+impl PartialEq<char> for AsciiChar {
+    fn eq(&self, other: &char) -> bool {
+        self.0 as char == *other
+    }
+}
+impl PartialEq<AsciiChar> for char {
+    fn eq(&self, other: &AsciiChar) -> bool {
+        other.0 as char == *self
+    }
+}
+
+impl Char for AsciiChar {
     const ASCII: bool = true;
     #[inline]
     fn char_class(self, config: &MatcherConfig) -> CharClass {
-        let c = self;
+        let c = self.0;
         // using manual if conditions instead optimizes better
         if c >= b'a' && c <= b'z' {
             CharClass::Lower
@@ -36,23 +72,20 @@ impl Char for u8 {
     }
 
     #[inline(always)]
-    fn char_class_and_normalize(self, config: &MatcherConfig) -> (Self, CharClass) {
+    fn char_class_and_normalize(mut self, config: &MatcherConfig) -> (Self, CharClass) {
         let char_class = self.char_class(config);
-        let normalized = if config.ignore_case && char_class == CharClass::Upper {
-            self + 32
-        } else {
-            self
-        };
-        (normalized, char_class)
+        if config.ignore_case && char_class == CharClass::Upper {
+            self.0 += 32
+        }
+        (self, char_class)
     }
 
     #[inline(always)]
-    fn normalize(self, config: &MatcherConfig) -> Self {
-        if config.ignore_case && self >= b'A' && self <= b'Z' {
-            self + 32
-        } else {
-            self
+    fn normalize(mut self, config: &MatcherConfig) -> Self {
+        if config.ignore_case && self.0 >= b'A' && self.0 <= b'Z' {
+            self.0 += 32
         }
+        self
     }
 }
 fn char_class_non_ascii(c: char) -> CharClass {
@@ -75,7 +108,7 @@ impl Char for char {
     #[inline(always)]
     fn char_class(self, config: &MatcherConfig) -> CharClass {
         if self.is_ascii() {
-            return (self as u8).char_class(config);
+            return AsciiChar(self as u8).char_class(config);
         }
         char_class_non_ascii(self)
     }
@@ -83,8 +116,8 @@ impl Char for char {
     #[inline(always)]
     fn char_class_and_normalize(mut self, config: &MatcherConfig) -> (Self, CharClass) {
         if self.is_ascii() {
-            let (c, class) = (self as u8).char_class_and_normalize(config);
-            return (c as char, class);
+            let (c, class) = AsciiChar(self as u8).char_class_and_normalize(config);
+            return (c.0 as char, class);
         }
         let char_class = char_class_non_ascii(self);
         if char_class == CharClass::Upper {

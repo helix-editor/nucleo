@@ -38,7 +38,8 @@ impl Matcher {
                 haystack = &haystack[idx..];
             }
             let end = eager_end
-                + find_ascii_ignore_case_rev(*needle.last().unwrap(), haystack).unwrap_or(0);
+                + find_ascii_ignore_case_rev(*needle.last().unwrap(), haystack)
+                    .map_or(0, |i| i + 1);
             Some((start, eager_end, end))
         } else {
             let start = memchr(needle[0], haystack)?;
@@ -49,7 +50,7 @@ impl Matcher {
                 eager_end += idx;
                 haystack = &haystack[idx..];
             }
-            let end = eager_end + memrchr(*needle.last().unwrap(), haystack).unwrap_or(0);
+            let end = eager_end + memrchr(*needle.last().unwrap(), haystack).map_or(0, |i| i + 1);
             Some((start, eager_end, end))
         }
     }
@@ -64,9 +65,11 @@ impl Matcher {
             .iter()
             .position(|c| c.normalize(&self.config) == needle_char)?;
         let needle_char = needle.last();
-        let end = haystack[start..]
-            .iter()
-            .position(|c| c.normalize(&self.config) == needle_char)?;
+        let end = start + haystack.len()
+            - haystack[start..]
+                .iter()
+                .rev()
+                .position(|c| c.normalize(&self.config) == needle_char)?;
 
         Some((start, end))
     }

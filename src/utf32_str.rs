@@ -1,4 +1,5 @@
 use std::ops::{Bound, RangeBounds};
+use std::slice;
 
 /// A UTF32 encoded (char array) String that can be used as an input to fuzzy matching.
 ///
@@ -108,16 +109,25 @@ impl<'a> Utf32Str<'a> {
             Utf32Str::Unicode(codepoints) => codepoints[codepoints.len()],
         }
     }
+    pub fn chars(&self) -> Chars<'_> {
+        match self {
+            Utf32Str::Ascii(bytes) => Chars::Ascii(bytes.iter()),
+            Utf32Str::Unicode(codepoints) => Chars::Unicode(codepoints.iter()),
+        }
+    }
 }
 
-// impl Str for &[char] {
-//     type Chars;
+pub enum Chars<'a> {
+    Ascii(slice::Iter<'a, u8>),
+    Unicode(slice::Iter<'a, char>),
+}
+impl<'a> Iterator for Chars<'a> {
+    type Item = char;
 
-//     fn chars(&self) -> Self::Chars {
-//         todo!()
-//     }
-
-//     fn slice(&self, range: impl RangeBounds<u32>) {
-//         todo!()
-//     }
-// }
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Chars::Ascii(iter) => iter.next().map(|&c| c as char),
+            Chars::Unicode(iter) => iter.next().copied(),
+        }
+    }
+}

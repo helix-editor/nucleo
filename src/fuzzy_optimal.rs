@@ -1,4 +1,5 @@
 use std::cmp::max;
+use std::mem::take;
 
 use crate::chars::{Char, CharClass};
 use crate::matrix::{haystack, rows_mut, Matrix, MatrixCell, MatrixRow};
@@ -54,8 +55,6 @@ impl Matcher {
         if INDICIES {
             matrix.reconstruct_optimal_path(needle, start as u32, indicies, best_match_end);
         }
-        println!("{indicies:?}");
-        println!("{}", max_score);
         Some(max_score)
     }
 }
@@ -70,6 +69,7 @@ impl<H: Char> Matrix<'_, H> {
     where
         H: PartialEq<N>,
     {
+        let haystack_len = self.haystack.len() as u16;
         let mut row_iter = needle.iter().copied().zip(self.row_offs.iter_mut());
         let (mut needle_char, mut row_start) = row_iter.next().unwrap();
 
@@ -86,6 +86,7 @@ impl<H: Char> Matrix<'_, H> {
         let mut prev_score = 0u16;
         let mut matched = false;
         let first_needle_char = needle[0];
+        let mut matrix_cells = 0;
 
         for (i, ((c, matrix_cell), bonus_)) in col_iter {
             let class = c.char_class(config);
@@ -97,23 +98,21 @@ impl<H: Char> Matrix<'_, H> {
             prev_class = class;
 
             let i = i as u16;
-            println!("{i} {needle_char:?} {c:?}");
             if *c == needle_char {
                 // save the first idx of each char
                 if let Some(next) = row_iter.next() {
+                    matrix_cells += haystack_len - i;
                     *row_start = i;
                     (needle_char, row_start) = next;
-                } else {
-                    if !matched {
-                        *row_start = i;
-                    }
+                } else if !matched {
+                    matrix_cells += haystack_len - i;
+                    *row_start = i;
                     // we have atleast one match
                     matched = true;
                 }
             }
             if *c == first_needle_char {
                 let score = SCORE_MATCH + bonus * BONUS_FIRST_CHAR_MULTIPLIER;
-                println!("start match {score}");
                 matrix_cell.consecutive_chars = 1;
                 if needle.len() == 1 && score > max_score {
                     max_score = score;
@@ -137,7 +136,7 @@ impl<H: Char> Matrix<'_, H> {
             }
             prev_score = matrix_cell.score;
         }
-
+        self.cells = &mut take(&mut self.cells)[..matrix_cells as usize];
         (max_score_pos, max_score, matched)
     }
 
@@ -208,7 +207,6 @@ impl<H: Char> Matrix<'_, H> {
                 }
                 in_gap = score1 < score2;
                 let score = max(score1, score2);
-                println!("{score} {score1} {score2}");
                 if i == needle.len() - 1 && score > max_score {
                     max_score = score;
                     max_score_end = col as u16;
@@ -231,7 +229,7 @@ impl<H: Char> Matrix<'_, H> {
     ) {
         indicies.resize(needle.len(), 0);
 
-        let mut row_iter = self.rows_rev().zip(indicies.iter_mut()).peekable();
+        let mut row_iter = self.rows_rev().zip(indicies.iter_mut().rev()).peekable();
         let (mut row, mut matched_col_idx) = row_iter.next().unwrap();
         let mut next_row: Option<MatrixRow> = None;
         let mut col = best_match_end;
@@ -239,7 +237,7 @@ impl<H: Char> Matrix<'_, H> {
         let haystack_len = self.haystack.len() as u16;
 
         loop {
-            let score = row.cells[col as usize].score;
+            let score = row[col].score;
             let mut score1 = 0;
             let mut score2 = 0;
             if let Some(&(prev_row, _)) = row_iter.peek() {
@@ -250,19 +248,20 @@ impl<H: Char> Matrix<'_, H> {
             if col > row.off {
                 score2 = row[col - 1].score;
             }
-            println!("{score} {score2} {score1} {prefer_match}");
             let mut new_prefer_match = row[col].consecutive_chars > 1;
             if !new_prefer_match && col + 1 < haystack_len {
                 if let Some(next_row) = next_row {
-                    new_prefer_match = next_row[col + 1].consecutive_chars > 0
+                    if col + 1 > next_row.off {
+                        new_prefer_match = next_row[col + 1].consecutive_chars > 0
+                    }
                 }
             }
             if score > score1 && (score > score2 || score == score2 && prefer_match) {
                 *matched_col_idx = col as u32 + start;
                 next_row = Some(row);
                 let Some(next) = row_iter.next() else {
-                                break;
-                            };
+                    break;
+                };
                 (row, matched_col_idx) = next
             }
             prefer_match = new_prefer_match;

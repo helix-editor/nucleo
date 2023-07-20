@@ -10,11 +10,12 @@ mod prefilter;
 mod score;
 mod utf32_str;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 pub use config::MatcherConfig;
 
+use crate::chars::AsciiChar;
 use crate::matrix::MatrixSlab;
 use crate::utf32_str::Utf32Str;
 
@@ -61,12 +62,29 @@ impl Matcher {
         assert!(haystack.len() <= u32::MAX as usize);
         self.fuzzy_matcher_impl::<false>(haystack, needle, &mut Vec::new())
     }
+
+    pub fn fuzzy_indicies(
+        &mut self,
+        haystack: Utf32Str<'_>,
+        needle: Utf32Str<'_>,
+        indidies: &mut Vec<u32>,
+    ) -> Option<u16> {
+        assert!(haystack.len() <= u32::MAX as usize);
+        self.fuzzy_matcher_impl::<true>(haystack, needle, indidies)
+    }
+
     fn fuzzy_matcher_impl<const INDICIES: bool>(
         &mut self,
         haystack: Utf32Str<'_>,
         needle_: Utf32Str<'_>,
         indidies: &mut Vec<u32>,
     ) -> Option<u16> {
+        if needle_.len() > haystack.len() {
+            return None;
+        }
+        // if needle_.len() == haystack.len() {
+        //     return self.exact_match();
+        // }
         assert!(
             haystack.len() <= u32::MAX as usize,
             "fuzzy matching is only support for up to 2^32-1 codepoints"
@@ -74,8 +92,13 @@ impl Matcher {
         match (haystack, needle_) {
             (Utf32Str::Ascii(haystack), Utf32Str::Ascii(needle)) => {
                 let (start, greedy_end, end) = self.prefilter_ascii(haystack, needle)?;
-                self.fuzzy_match_optimal::<INDICIES, u8, u8>(
-                    haystack, needle, start, greedy_end, end, indidies,
+                self.fuzzy_match_optimal::<INDICIES, AsciiChar, AsciiChar>(
+                    AsciiChar::cast(haystack),
+                    AsciiChar::cast(needle),
+                    start,
+                    greedy_end,
+                    end,
+                    indidies,
                 )
             }
             (Utf32Str::Ascii(_), Utf32Str::Unicode(_)) => {
@@ -84,16 +107,15 @@ impl Matcher {
                 None
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Ascii(needle)) => {
-                todo!()
-                // let (start, end) = self.prefilter_non_ascii(haystack, needle_)?;
-                // self.fuzzy_match_optimal::<INDICIES, char, u8>(
-                //     haystack,
-                //     needle,
-                //     start,
-                //     start + 1,
-                //     end,
-                //     indidies,
-                // )
+                let (start, end) = self.prefilter_non_ascii(haystack, needle_)?;
+                self.fuzzy_match_optimal::<INDICIES, char, AsciiChar>(
+                    haystack,
+                    AsciiChar::cast(needle),
+                    start,
+                    start + 1,
+                    end,
+                    indidies,
+                )
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Unicode(needle)) => {
                 let (start, end) = self.prefilter_non_ascii(haystack, needle_)?;

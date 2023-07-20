@@ -82,7 +82,7 @@ pub(crate) struct MatrixCell {
 
 impl Debug for MatrixCell {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        (self.score, self.consecutive_chars).fmt(f)
+        write!(f, "({}, {})", self.score, self.consecutive_chars)
     }
 }
 
@@ -94,7 +94,7 @@ pub(crate) struct HaystackChar<C: Char> {
 
 impl<C: Char> Debug for HaystackChar<C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        (self.char, self.bonus).fmt(f)
+        write!(f, "({:?}, {})", self.char, self.bonus)
     }
 }
 
@@ -103,18 +103,26 @@ pub(crate) struct MatrixRow<'a> {
     pub off: u16,
     pub cells: &'a [MatrixCell],
 }
+
+/// Intexing returns the cell that corresponds to colmun `col` in this row,
+/// this is not the same as directly indexing the cells array because every row
+/// starts at a column offset which needs to be accounted for
 impl Index<u16> for MatrixRow<'_> {
     type Output = MatrixCell;
 
-    fn index(&self, index: u16) -> &Self::Output {
-        &self.cells[index as usize]
+    #[inline(always)]
+    fn index(&self, col: u16) -> &Self::Output {
+        &self.cells[(col - self.off) as usize]
     }
 }
 
 impl Debug for MatrixRow<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut f = f.debug_list();
-        f.entries((0..self.off).map(|_| &(0, 0)));
+        f.entries((0..self.off).map(|_| &MatrixCell {
+            score: 0,
+            consecutive_chars: 0,
+        }));
         f.entries(self.cells.iter());
         f.finish()
     }
@@ -250,7 +258,7 @@ impl MatrixSlab {
         let matrix_layout = MatrixLayout::<C>::new(
             haystack_.len(),
             needle_len,
-            (haystack_.len() - needle_len / 2) * needle_len,
+            (haystack_.len() + 1 - needle_len / 2) * needle_len,
         );
         if matrix_layout.layout.size() > size_of::<MatrixData>() {
             return None;
