@@ -19,6 +19,7 @@ impl Matcher {
         end: usize,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
+        println!("{start} {end}");
         // construct a matrix (and copy the haystack), the matrix and haystack size are bounded
         // to avoid the slow O(mn) time complexity for large inputs. Furthermore, it allows
         // us to treat needle indices as u16
@@ -88,9 +89,9 @@ impl<H: Char> Matrix<'_, H> {
         let first_needle_char = needle[0];
         let mut matrix_cells = 0;
 
-        for (i, ((c, matrix_cell), bonus_)) in col_iter {
-            let class = c.char_class(config);
-            *c = c.normalize(config);
+        for (i, ((c_, matrix_cell), bonus_)) in col_iter {
+            let (c, class) = c_.char_class_and_normalize(config);
+            *c_ = c;
 
             let bonus = config.bonus_for(prev_class, class);
             // save bonus for later so we don't have to recompute it each time
@@ -98,7 +99,7 @@ impl<H: Char> Matrix<'_, H> {
             prev_class = class;
 
             let i = i as u16;
-            if *c == needle_char {
+            if c == needle_char {
                 // save the first idx of each char
                 if let Some(next) = row_iter.next() {
                     matrix_cells += haystack_len - i;
@@ -111,7 +112,7 @@ impl<H: Char> Matrix<'_, H> {
                     matched = true;
                 }
             }
-            if *c == first_needle_char {
+            if c == first_needle_char {
                 let score = SCORE_MATCH + bonus * BONUS_FIRST_CHAR_MULTIPLIER;
                 matrix_cell.consecutive_chars = 1;
                 if needle.len() == 1 && score > max_score {
@@ -195,7 +196,6 @@ impl<H: Char> Matrix<'_, H> {
                     consecutive = diag_matrix_cell.consecutive_chars + 1;
                     if consecutive > 1 {
                         let first_bonus = self.bonus[col + 1 - consecutive as usize];
-                        println!("xoxo {bonus} {first_bonus} {consecutive}");
                         if bonus > first_bonus {
                             if bonus >= BONUS_BOUNDARY {
                                 consecutive = 1
@@ -281,6 +281,5 @@ impl<H: Char> Matrix<'_, H> {
             prefer_match = new_prefer_match;
             col -= 1;
         }
-        println!("{:#?}", self);
     }
 }

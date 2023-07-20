@@ -3,6 +3,8 @@
 
 mod chars;
 mod config;
+#[cfg(test)]
+mod debug;
 mod fuzzy_greedy;
 mod fuzzy_optimal;
 mod matrix;
@@ -23,32 +25,6 @@ pub struct Matcher {
     pub config: MatcherConfig,
     slab: MatrixSlab,
 }
-
-// // impl Query {
-// //     fn push(&mut self, needle: Utf32Str<'_>, normalize_: bool, smart_case: bool) {
-// //         self.needle_chars.reserve(needle.len());
-// //         self.needle_chars.extend(needle.chars().map(|mut c| {
-// //             if !c.is_ascii() {
-// //                 self.is_ascii = false;
-// //             }
-// //             if smart_case {
-// //                 if c.is_uppercase() {
-// //                     self.ignore_case = false;
-// //                 }
-// //             } else if self.ignore_case {
-// //                 if self.is_ascii {
-// //                     c = to_lower_case::<true>(c)
-// //                 } else {
-// //                     c = to_lower_case::<false>(c)
-// //                 }
-// //             }
-// //             if normalize_ && !self.is_ascii {
-// //                 c = normalize(c);
-// //             }
-// //             c
-// //         }))
-// //     }
-// // }
 
 impl Matcher {
     pub fn new(config: MatcherConfig) -> Self {
@@ -79,7 +55,7 @@ impl Matcher {
         needle_: Utf32Str<'_>,
         indidies: &mut Vec<u32>,
     ) -> Option<u16> {
-        if needle_.len() > haystack.len() {
+        if needle_.len() > haystack.len() || needle_.is_empty() {
             return None;
         }
         // if needle_.len() == haystack.len() {

@@ -79,7 +79,7 @@ impl Matcher {
         if only_greedy {
             Some((start, start + 1))
         } else {
-            let end = start + haystack.len()
+            let end = haystack.len()
                 - haystack[start..]
                     .iter()
                     .rev()

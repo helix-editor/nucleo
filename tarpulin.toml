@@ -1,0 +1,3 @@
+exclude = ["src/tests.rs", "src/debug.rs", "src/chars/normalize.rs"]
+[report]
+out = ["Html", "Xml"]

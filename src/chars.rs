@@ -9,7 +9,7 @@ use crate::MatcherConfig;
 mod case_fold;
 mod normalize;
 
-pub trait Char: Copy + Eq + Ord + fmt::Debug + fmt::Display {
+pub trait Char: Copy + Eq + Ord + fmt::Display {
     const ASCII: bool;
     fn char_class(self, config: &MatcherConfig) -> CharClass;
     fn char_class_and_normalize(self, config: &MatcherConfig) -> (Self, CharClass);
@@ -27,23 +27,12 @@ impl AsciiChar {
     }
 }
 
-impl fmt::Debug for AsciiChar {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Debug::fmt(&(self.0 as char), f)
-    }
-}
-
 impl fmt::Display for AsciiChar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&(self.0 as char), f)
     }
 }
 
-impl PartialEq<char> for AsciiChar {
-    fn eq(&self, other: &char) -> bool {
-        self.0 as char == *other
-    }
-}
 impl PartialEq<AsciiChar> for char {
     fn eq(&self, other: &AsciiChar) -> bool {
         other.0 as char == *self

@@ -495,7 +495,7 @@ static TABLE3: [char; LEN3] = generate_table(&DATA3);
 
 pub fn normalize(c: char) -> char {
     let i = c as u32;
-    if i < DATA1_START || DATA3_END >= i {
+    if i < DATA1_START || i >= DATA3_END {
         return c;
     }
     if i < DATA1_END {

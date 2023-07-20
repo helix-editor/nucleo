@@ -55,6 +55,13 @@ impl<'a> Utf32Str<'a> {
             Utf32Str::Ascii(ascii_bytes) => ascii_bytes.len(),
         }
     }
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Utf32Str::Unicode(codepoints) => codepoints.is_empty(),
+            Utf32Str::Ascii(ascii_bytes) => ascii_bytes.is_empty(),
+        }
+    }
 
     #[inline]
     pub fn slice(&self, range: impl RangeBounds<usize>) -> Utf32Str {
@@ -105,8 +112,8 @@ impl<'a> Utf32Str<'a> {
     }
     pub fn last(&self) -> char {
         match self {
-            Utf32Str::Ascii(bytes) => bytes[bytes.len()] as char,
-            Utf32Str::Unicode(codepoints) => codepoints[codepoints.len()],
+            Utf32Str::Ascii(bytes) => bytes[bytes.len() - 1] as char,
+            Utf32Str::Unicode(codepoints) => codepoints[codepoints.len() - 1],
         }
     }
     pub fn chars(&self) -> Chars<'_> {

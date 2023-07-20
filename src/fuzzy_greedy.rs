@@ -12,22 +12,27 @@ impl Matcher {
         mut end: usize,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        let first_char_end = if H::ASCII { start + 1 } else { end };
-        if !H::ASCII && needle.len() != 1 {
-            let mut needle_iter = needle[1..].iter().copied();
-            if let Some(mut needle_char) = needle_iter.next() {
-                for (i, &c) in haystack[first_char_end..].iter().enumerate() {
-                    if c.normalize(&self.config) == needle_char {
-                        let Some(next_needle_char) = needle_iter.next() else {
-                            end = i + 1;
-                            break;
-                        };
-                        needle_char = next_needle_char;
+        let first_char_end = if H::ASCII && N::ASCII { start + 1 } else { end };
+        'nonascii: {
+            if !H::ASCII || !N::ASCII {
+                let mut needle_iter = needle[1..].iter().copied();
+                if let Some(mut needle_char) = needle_iter.next() {
+                    for (i, &c) in haystack[first_char_end..].iter().enumerate() {
+                        if c.normalize(&self.config) == needle_char {
+                            let Some(next_needle_char) = needle_iter.next() else {
+                                // we found a match so we are now in the same state
+                                // as the prefilter would produce 
+                                end = first_char_end + i + 1;
+                                break 'nonascii;
+                            };
+                            needle_char = next_needle_char;
+                        }
                     }
+                    // some needle chars were not matched bail out
+                    return None;
                 }
             }
-        }
-        // minimize the greedly match by greedy matching in reverse
+        } // minimize the greedly match by greedy matching in reverse
 
         let mut needle_iter = needle.iter().rev().copied();
         let mut needle_char = needle_iter.next().unwrap();
