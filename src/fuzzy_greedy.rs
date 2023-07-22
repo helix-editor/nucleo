@@ -37,6 +37,7 @@ impl Matcher {
         let mut needle_iter = needle.iter().rev().copied();
         let mut needle_char = needle_iter.next().unwrap();
         for (i, &c) in haystack[start..end].iter().enumerate().rev() {
+            let c = c.normalize(&self.config);
             if c == needle_char {
                 let Some(next_needle_char) = needle_iter.next() else {
                     start += i;

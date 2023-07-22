@@ -6,7 +6,7 @@ use crate::Matcher;
 
 #[inline(always)]
 fn find_ascii_ignore_case(c: u8, haystack: &[u8]) -> Option<usize> {
-    if c >= b'a' || c <= b'z' {
+    if c >= b'a' && c <= b'z' {
         memchr2(c, c - 32, haystack)
     } else {
         memchr(c, haystack)
@@ -15,7 +15,7 @@ fn find_ascii_ignore_case(c: u8, haystack: &[u8]) -> Option<usize> {
 
 #[inline(always)]
 fn find_ascii_ignore_case_rev(c: u8, haystack: &[u8]) -> Option<usize> {
-    if c >= b'a' || c <= b'z' {
+    if c >= b'a' && c <= b'z' {
         memrchr2(c, c - 32, haystack)
     } else {
         memrchr(c, haystack)
@@ -84,6 +84,11 @@ impl Matcher {
                     .iter()
                     .rev()
                     .position(|c| c.normalize(&self.config) == needle_char)?;
+            // matches are never possible in this case
+            if end - start < needle.len() {
+                cov_mark::hit!(small_haystack);
+                return None;
+            }
 
             Some((start, end))
         }

@@ -103,8 +103,7 @@ impl Matcher {
         needle_char = *needle_iter.next().unwrap_or(&needle_char);
 
         for (i, c) in haystack[start + 1..end].iter().enumerate() {
-            let class = c.char_class(&self.config);
-            let c = c.normalize(&self.config);
+            let (c, class) = c.char_class_and_normalize(&self.config);
             if c == needle_char {
                 if INDICES {
                     indices.push(i as u32 + start as u32 + 1)

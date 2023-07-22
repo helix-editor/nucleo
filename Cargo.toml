@@ -7,3 +7,8 @@ edition = "2021"
 
 [dependencies]
 memchr = "2.5.0"
+cov-mark = { version = "1.1.0", default-features = false }
+
+[dev-dependencies]
+cov-mark = { version = "1.1.0", default-features = true }
+

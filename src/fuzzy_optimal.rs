@@ -19,7 +19,6 @@ impl Matcher {
         end: usize,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        println!("{start} {end}");
         // construct a matrix (and copy the haystack), the matrix and haystack size are bounded
         // to avoid the slow O(mn) time complexity for large inputs. Furthermore, it allows
         // us to treat needle indices as u16
@@ -40,10 +39,12 @@ impl Matcher {
         let (max_score_pos, max_score, matched) = matrix.setup(needle, prev_class, &self.config);
         // this only happened with unicode haystacks, for ASCII the prefilter handles all rejects
         if !matched {
+            debug_assert!(!(H::ASCII && N::ASCII));
             return None;
         }
         if needle.len() == 1 {
-            indices.push(max_score_pos as u32);
+            indices.clear();
+            indices.push(max_score_pos as u32 + start as u32);
             return Some(max_score);
         }
         debug_assert_eq!(
@@ -112,27 +113,35 @@ impl<H: Char> Matrix<'_, H> {
                     matched = true;
                 }
             }
-            if c == first_needle_char {
-                let score = SCORE_MATCH + bonus * BONUS_FIRST_CHAR_MULTIPLIER;
+
+            // we calculate two scores:
+            // * one for transversing the matrix horizontially (no match at
+            //   the current char)
+            // * one for transversing the matrix diagonally (match at the
+            //   current char)
+            // the maximum of those two scores is used
+            let gap_penalty = if in_gap {
+                PENALTY_GAP_EXTENSION
+            } else {
+                PENALTY_GAP_START
+            };
+            let score_gap = prev_score.saturating_sub(gap_penalty);
+            let score_match = SCORE_MATCH + bonus * BONUS_FIRST_CHAR_MULTIPLIER;
+            if c == first_needle_char && score_match >= score_gap {
                 matrix_cell.consecutive_chars = 1;
-                if needle.len() == 1 && score > max_score {
-                    max_score = score;
+                matrix_cell.score = score_match;
+                in_gap = false;
+                if needle.len() == 1 && score_match > max_score {
+                    max_score = score_match;
                     max_score_pos = i;
                     // can't get better than this
                     if bonus >= BONUS_BOUNDARY {
                         break;
                     }
                 }
-                matrix_cell.score = score;
-                in_gap = false;
             } else {
-                let gap_penalty = if in_gap {
-                    PENALTY_GAP_EXTENSION
-                } else {
-                    PENALTY_GAP_START
-                };
-                matrix_cell.score = prev_score.saturating_sub(gap_penalty);
                 matrix_cell.consecutive_chars = 0;
+                matrix_cell.score = score_gap;
                 in_gap = true;
             }
             prev_score = matrix_cell.score;
@@ -186,7 +195,7 @@ impl<H: Char> Matrix<'_, H> {
                 //   current char)
                 // the maximum of those two scores is used
                 let mut score_diag = 0;
-                let score_hory = prev_matrix_cell.score.saturating_sub(gap_penalty);
+                let score_hor = prev_matrix_cell.score.saturating_sub(gap_penalty);
 
                 let mut consecutive = 0;
                 if haystack_char.char == needle_char {
@@ -206,15 +215,17 @@ impl<H: Char> Matrix<'_, H> {
                             bonus = max(first_bonus, BONUS_CONSECUTIVE)
                         }
                     }
-                    if score_diag + bonus < score_hory {
+                    if score_diag + bonus < score_hor
+                        || (consecutive == 1 && score_diag + bonus == score_hor)
+                    {
                         score_diag += haystack_char.bonus;
                         consecutive = 0;
                     } else {
                         score_diag += bonus;
                     }
                 }
-                in_gap = score_diag < score_hory;
-                let score = max(score_diag, score_hory);
+                in_gap = consecutive == 0;
+                let score = max(score_diag, score_hor);
                 if i == needle.len() - 1 && score > max_score {
                     max_score = score;
                     max_score_end = col as u16;
@@ -235,6 +246,7 @@ impl<H: Char> Matrix<'_, H> {
         indices: &mut Vec<u32>,
         best_match_end: u16,
     ) {
+        indices.clear();
         indices.resize(needle.len(), 0);
 
         let mut row_iter = self.rows_rev().zip(indices.iter_mut().rev()).peekable();
@@ -255,22 +267,22 @@ impl<H: Char> Matrix<'_, H> {
             let mut score_diag = 0;
             let mut score_horz = 0;
             if let Some(&(prev_row, _)) = row_iter.peek() {
-                if col >= prev_row.off {
-                    score_diag = prev_row[col].score;
-                }
+                score_diag = prev_row[col - 1].score;
             }
             if col > row.off {
                 score_horz = row[col - 1].score;
             }
-            let mut new_prefer_match = row[col].consecutive_chars > 1;
-            if !new_prefer_match && col + 1 < haystack_len {
+            let mut in_block = row[col].consecutive_chars > 1;
+            if !in_block && col + 1 < haystack_len {
                 if let Some(next_row) = next_row {
                     if col + 1 >= next_row.off {
-                        new_prefer_match = next_row[col + 1].consecutive_chars > 0
+                        in_block = next_row[col + 1].consecutive_chars > 1
                     }
                 }
             }
-            if score > score_diag && (score > score_horz || score == score_horz && prefer_match) {
+            if score > score_diag
+                && (score > score_horz || in_block || prefer_match && score == score_horz)
+            {
                 *matched_col_idx = col as u32 + start;
                 next_row = Some(row);
                 let Some(next) = row_iter.next() else {
@@ -278,8 +290,8 @@ impl<H: Char> Matrix<'_, H> {
                 };
                 (row, matched_col_idx) = next
             }
-            prefer_match = new_prefer_match;
             col -= 1;
+            prefer_match = row[col].consecutive_chars != 0;
         }
     }
 }

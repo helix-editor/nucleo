@@ -2,6 +2,7 @@ use crate::chars::CharClass;
 use crate::score::BONUS_BOUNDARY;
 
 #[non_exhaustive]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct MatcherConfig {
     pub delimiter_chars: &'static [u8],
     /// Extra bonus for word boundary after whitespace character or beginning of the string
@@ -17,14 +18,6 @@ pub struct MatcherConfig {
     /// whether to ignore casing
     pub ignore_case: bool,
 }
-
-// #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Copy, Clone, Hash)]
-// #[non_exhaustive]
-// pub enum CaseMatching {
-//     Respect,
-//     Ignore,
-//     Smart,
-// }
 
 impl MatcherConfig {
     pub const DEFAULT: Self = {

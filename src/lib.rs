@@ -1,7 +1,7 @@
 // sadly ranges don't optmimzie well
 #![allow(clippy::manual_range_contains)]
 
-mod chars;
+pub mod chars;
 mod config;
 #[cfg(test)]
 mod debug;
@@ -15,11 +15,11 @@ mod utf32_str;
 #[cfg(test)]
 mod tests;
 
-pub use config::MatcherConfig;
+pub use crate::config::MatcherConfig;
+pub use crate::utf32_str::Utf32Str;
 
 use crate::chars::AsciiChar;
 use crate::matrix::MatrixSlab;
-use crate::utf32_str::Utf32Str;
 
 pub struct Matcher {
     pub config: MatcherConfig,
@@ -131,7 +131,7 @@ impl Matcher {
         needle_: Utf32Str<'_>,
         indidies: &mut Vec<u32>,
     ) -> Option<u16> {
-        if needle_.len() > haystack.len() {
+        if needle_.len() > haystack.len() || needle_.is_empty() {
             return None;
         }
         // if needle_.len() == haystack.len() {

@@ -1,3 +1,5 @@
+use cov_mark::check;
+
 use crate::chars::Char;
 use crate::score::{
     BONUS_BOUNDARY, BONUS_CAMEL123, BONUS_CONSECUTIVE, BONUS_FIRST_CHAR_MULTIPLIER, BONUS_NON_WORD,
@@ -6,12 +8,20 @@ use crate::score::{
 use crate::utf32_str::Utf32Str;
 use crate::{Matcher, MatcherConfig};
 
-pub fn assert_matches(
-    use_v1: bool,
+use Algorithm::*;
+
+#[derive(Debug)]
+enum Algorithm {
+    FuzzyOptimal,
+    FuzzyGreedy,
+}
+
+fn assert_matches(
+    algorithm: &[Algorithm],
     normalize: bool,
     case_sensitive: bool,
     path: bool,
-    cases: &[(&str, &str, u32, u32, u16)],
+    cases: &[(&str, &str, &[u32], u16)],
 ) {
     let mut config = MatcherConfig {
         normalize,
@@ -22,10 +32,10 @@ pub fn assert_matches(
         config.set_match_paths();
     }
     let mut matcher = Matcher::new(config);
-    let mut indices = Vec::new();
+    let mut matched_indices = Vec::new();
     let mut needle_buf = Vec::new();
     let mut haystack_buf = Vec::new();
-    for &(haystack, needle, start, end, mut score) in cases {
+    for &(haystack, needle, indices, mut score) in cases {
         let needle = if !case_sensitive {
             needle.to_lowercase()
         } else {
@@ -34,32 +44,37 @@ pub fn assert_matches(
         let needle = Utf32Str::new(&needle, &mut needle_buf);
         let haystack = Utf32Str::new(haystack, &mut haystack_buf);
         score += needle.len() as u16 * SCORE_MATCH;
+        for algo in algorithm {
+            println!("xx {matched_indices:?} {algo:?}");
+            let res = match algo {
+                Algorithm::FuzzyOptimal => {
+                    matcher.fuzzy_indices(haystack, needle, &mut matched_indices)
+                }
+                Algorithm::FuzzyGreedy => {
+                    matcher.fuzzy_indices_greedy(haystack, needle, &mut matched_indices)
+                }
+            };
+            println!("{matched_indices:?}");
+            let match_chars: Vec<_> = matched_indices
+                .iter()
+                .map(|&i| haystack.get(i).normalize(&matcher.config))
+                .collect();
+            let needle_chars: Vec<_> = needle.chars().collect();
 
-        let res = if use_v1 {
-            matcher.fuzzy_indices_greedy(haystack, needle, &mut indices)
-        } else {
-            matcher.fuzzy_indices(haystack, needle, &mut indices)
-        };
-        let match_chars: Vec<_> = indices
-            .iter()
-            .map(|&i| haystack.get(i).normalize(&matcher.config))
-            .collect();
-        let needle_chars: Vec<_> = needle.chars().collect();
-
-        assert_eq!(
-            res,
-            Some(score),
-            "{needle:?} did  not match {haystack:?}: matched {match_chars:?} {indices:?}"
-        );
-        assert_eq!(
-            match_chars, needle_chars,
-            "match indices are incorrect {indices:?}"
-        );
-        assert_eq!(
-            indices.first().copied()..indices.last().map(|&i| i + 1),
-            Some(start)..Some(end),
-            "{needle:?} match {haystack:?}"
-        );
+            assert_eq!(
+                res,
+                Some(score),
+                "{needle:?} did  not match {haystack:?}: matched {match_chars:?} {matched_indices:?} {algo:?}"
+            );
+            assert_eq!(
+                matched_indices, indices,
+                "{needle:?} match {haystack:?} {algo:?}"
+            );
+            assert_eq!(
+                match_chars, needle_chars,
+                "{needle:?} match {haystack:?} indices are incorrect {matched_indices:?} {algo:?}"
+            );
+        }
     }
 }
 
@@ -104,7 +119,7 @@ const BONUS_BOUNDARY_DELIMITER: u16 = MatcherConfig::DEFAULT.bonus_boundary_deli
 #[test]
 fn test_fuzzy() {
     assert_matches(
-        false,
+        &[FuzzyGreedy, FuzzyOptimal],
         false,
         false,
         false,
@@ -112,15 +127,13 @@ fn test_fuzzy() {
             (
                 "fooBarbaz1",
                 "oBZ",
-                2,
-                9,
+                &[2, 3, 8],
                 BONUS_CAMEL123 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION * 3,
             ),
             (
                 "foo bar baz",
                 "fbb",
-                0,
-                9,
+                &[0, 4, 8],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE * 2
                     - 2 * PENALTY_GAP_START
                     - 4 * PENALTY_GAP_EXTENSION,
@@ -128,23 +141,20 @@ fn test_fuzzy() {
             (
                 "/AutomatorDocument.icns",
                 "rdoc",
-                9,
-                13,
+                &[9, 10, 11, 12],
                 BONUS_CAMEL123 + BONUS_CONSECUTIVE * 2,
             ),
             (
                 "/man1/zshcompctl.1",
                 "zshc",
-                6,
-                10,
+                &[6, 7, 8, 9],
                 BONUS_BOUNDARY_DELIMITER * BONUS_FIRST_CHAR_MULTIPLIER
                     + BONUS_BOUNDARY_DELIMITER * 3,
             ),
             (
                 "/.oh-my-zsh/cache",
                 "zshc",
-                8,
-                13,
+                &[8, 9, 10, 12],
                 BONUS_BOUNDARY * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY * 2
                     - PENALTY_GAP_START
                     + BONUS_BOUNDARY_DELIMITER,
@@ -152,15 +162,13 @@ fn test_fuzzy() {
             (
                 "ab0123 456",
                 "12356",
-                3,
-                10,
+                &[3, 4, 5, 8, 9],
                 BONUS_CONSECUTIVE * 3 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION,
             ),
             (
                 "abc123 456",
                 "12356",
-                3,
-                10,
+                &[3, 4, 5, 8, 9],
                 BONUS_CAMEL123 * BONUS_FIRST_CHAR_MULTIPLIER
                     + BONUS_CAMEL123 * 2
                     + BONUS_CONSECUTIVE
@@ -170,8 +178,7 @@ fn test_fuzzy() {
             (
                 "foo/bar/baz",
                 "fbb",
-                0,
-                9,
+                &[0, 4, 8],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_DELIMITER * 2
                     - 2 * PENALTY_GAP_START
                     - 4 * PENALTY_GAP_EXTENSION,
@@ -179,8 +186,7 @@ fn test_fuzzy() {
             (
                 "fooBarBaz",
                 "fbb",
-                0,
-                7,
+                &[0, 3, 6],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_CAMEL123 * 2
                     - 2 * PENALTY_GAP_START
                     - 2 * PENALTY_GAP_EXTENSION,
@@ -188,8 +194,7 @@ fn test_fuzzy() {
             (
                 "foo barbaz",
                 "fbb",
-                0,
-                8,
+                &[0, 4, 7],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE
                     - PENALTY_GAP_START * 2
                     - PENALTY_GAP_EXTENSION * 3,
@@ -197,19 +202,25 @@ fn test_fuzzy() {
             (
                 "fooBar Baz",
                 "foob",
-                0,
-                4,
+                &[0, 1, 2, 3],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE * 3,
             ),
             (
                 "xFoo-Bar Baz",
                 "foo-b",
-                1,
-                6,
+                &[1, 2, 3, 4, 5],
                 BONUS_CAMEL123 * BONUS_FIRST_CHAR_MULTIPLIER
                     + BONUS_CAMEL123 * 2
                     + BONUS_NON_WORD
                     + BONUS_BOUNDARY,
+            ),
+            (
+                "]\0\0\0H\0\0\0rrrrrrrrrrrrrrrrrrrrrrrVVVVVVVV\0",
+                "H\0\0VV",
+                &[4, 5, 6, 31, 32],
+                BONUS_BOUNDARY * (BONUS_FIRST_CHAR_MULTIPLIER + 2) + 2 * BONUS_CAMEL123
+                    - PENALTY_GAP_START
+                    - 23 * PENALTY_GAP_EXTENSION,
             ),
         ],
     );
@@ -218,53 +229,7 @@ fn test_fuzzy() {
 #[test]
 fn test_fuzzy_case_sensitive() {
     assert_matches(
-        false,
-        false,
-        true,
-        false,
-        &[
-            (
-                "fooBarbaz1",
-                "oBz",
-                2,
-                9,
-                BONUS_CAMEL123 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION * 3,
-            ),
-            (
-                "Foo/Bar/Baz",
-                "FBB",
-                0,
-                9,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_DELIMITER * 2
-                    - 2 * PENALTY_GAP_START
-                    - 4 * PENALTY_GAP_EXTENSION,
-            ),
-            (
-                "FooBarBaz",
-                "FBB",
-                0,
-                7,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_CAMEL123 * 2
-                    - 2 * PENALTY_GAP_START
-                    - 2 * PENALTY_GAP_EXTENSION,
-            ),
-            (
-                "FooBar Baz",
-                "FooB",
-                0,
-                4,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE * 3,
-            ),
-            // Consecutive bonus updated
-            ("foo-bar", "o-ba", 2, 6, BONUS_BOUNDARY * 2 + BONUS_NON_WORD),
-        ],
-    );
-}
-
-#[test]
-fn test_fuzzy_case_sensitive_v1() {
-    assert_matches(
-        true,
+        &[FuzzyGreedy, FuzzyOptimal],
         false,
         true,
         false,
@@ -272,15 +237,13 @@ fn test_fuzzy_case_sensitive_v1() {
             (
                 "fooBarbaz1",
                 "oBz",
-                2,
-                9,
+                &[2, 3, 8],
                 BONUS_CAMEL123 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION * 3,
             ),
             (
                 "Foo/Bar/Baz",
                 "FBB",
-                0,
-                9,
+                &[0, 4, 8],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_DELIMITER * 2
                     - 2 * PENALTY_GAP_START
                     - 4 * PENALTY_GAP_EXTENSION,
@@ -288,8 +251,7 @@ fn test_fuzzy_case_sensitive_v1() {
             (
                 "FooBarBaz",
                 "FBB",
-                0,
-                7,
+                &[0, 3, 6],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_CAMEL123 * 2
                     - 2 * PENALTY_GAP_START
                     - 2 * PENALTY_GAP_EXTENSION,
@@ -297,125 +259,15 @@ fn test_fuzzy_case_sensitive_v1() {
             (
                 "FooBar Baz",
                 "FooB",
-                0,
-                4,
+                &[0, 1, 2, 3],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE * 3,
             ),
             // Consecutive bonus updated
-            ("foo-bar", "o-ba", 2, 6, BONUS_BOUNDARY * 2 + BONUS_NON_WORD),
-        ],
-    );
-}
-
-#[test]
-fn test_v1_fuzzy() {
-    assert_matches(
-        true,
-        false,
-        false,
-        false,
-        &[
             (
-                "fooBarbaz1",
-                "oBZ",
-                2,
-                9,
-                BONUS_CAMEL123 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION * 3,
-            ),
-            (
-                "foo bar baz",
-                "fbb",
-                0,
-                9,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE * 2
-                    - 2 * PENALTY_GAP_START
-                    - 4 * PENALTY_GAP_EXTENSION,
-            ),
-            (
-                "/AutomatorDocument.icns",
-                "rdoc",
-                9,
-                13,
-                BONUS_CAMEL123 + BONUS_CONSECUTIVE * 2,
-            ),
-            (
-                "/man1/zshcompctl.1",
-                "zshc",
-                6,
-                10,
-                BONUS_BOUNDARY_DELIMITER * BONUS_FIRST_CHAR_MULTIPLIER
-                    + BONUS_BOUNDARY_DELIMITER * 3,
-            ),
-            (
-                "/.oh-my-zsh/cache",
-                "zshc",
-                8,
-                13,
-                BONUS_BOUNDARY * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY * 2
-                    - PENALTY_GAP_START
-                    + BONUS_BOUNDARY_DELIMITER,
-            ),
-            (
-                "ab0123 456",
-                "12356",
-                3,
-                10,
-                BONUS_CONSECUTIVE * 3 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION,
-            ),
-            (
-                "abc123 456",
-                "12356",
-                3,
-                10,
-                BONUS_CAMEL123 * BONUS_FIRST_CHAR_MULTIPLIER
-                    + BONUS_CAMEL123 * 2
-                    + BONUS_CONSECUTIVE
-                    - PENALTY_GAP_START
-                    - PENALTY_GAP_EXTENSION,
-            ),
-            (
-                "foo/bar/baz",
-                "fbb",
-                0,
-                9,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_DELIMITER * 2
-                    - 2 * PENALTY_GAP_START
-                    - 4 * PENALTY_GAP_EXTENSION,
-            ),
-            (
-                "fooBarBaz",
-                "fbb",
-                0,
-                7,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_CAMEL123 * 2
-                    - 2 * PENALTY_GAP_START
-                    - 2 * PENALTY_GAP_EXTENSION,
-            ),
-            (
-                "foo barbaz",
-                "fbb",
-                0,
-                8,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE
-                    - PENALTY_GAP_START * 2
-                    - PENALTY_GAP_EXTENSION * 3,
-            ),
-            (
-                "fooBar Baz",
-                "foob",
-                0,
-                4,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE * 3,
-            ),
-            (
-                "xFoo-Bar Baz",
-                "foo-b",
-                1,
-                6,
-                BONUS_CAMEL123 * BONUS_FIRST_CHAR_MULTIPLIER
-                    + BONUS_CAMEL123 * 2
-                    + BONUS_NON_WORD
-                    + BONUS_BOUNDARY,
+                "foo-bar",
+                "o-ba",
+                &[2, 3, 4, 5],
+                BONUS_BOUNDARY * 2 + BONUS_NON_WORD,
             ),
         ],
     );
@@ -424,7 +276,7 @@ fn test_v1_fuzzy() {
 #[test]
 fn test_normalize() {
     assert_matches(
-        false,
+        &[FuzzyGreedy, FuzzyOptimal],
         true,
         false,
         false,
@@ -432,15 +284,13 @@ fn test_normalize() {
             (
                 "Só Danço Samba",
                 "So",
-                0,
-                2,
+                &[0, 1],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE,
             ),
             (
                 "Só Danço Samba",
                 "sodc",
-                0,
-                7,
+                &[0, 1, 3, 6],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE
                     - PENALTY_GAP_START
                     + BONUS_BOUNDARY_WHITE
@@ -450,22 +300,19 @@ fn test_normalize() {
             (
                 "Danço",
                 "danco",
-                0,
-                5,
+                &[0, 1, 2, 3, 4],
                 BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
             ),
             (
                 "DanÇo",
                 "danco",
-                0,
-                5,
+                &[0, 1, 2, 3, 4],
                 BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
             ),
             (
                 "xÇando",
                 "cando",
-                1,
-                6,
+                &[1, 2, 3, 4, 5],
                 BONUS_CAMEL123 * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
             ),
         ],
@@ -473,60 +320,9 @@ fn test_normalize() {
 }
 
 #[test]
-fn test_normalize_v1() {
+fn test_unicode1() {
     assert_matches(
-        true,
-        true,
-        false,
-        false,
-        &[
-            (
-                "Só Danço Samba",
-                "So",
-                0,
-                2,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE,
-            ),
-            (
-                "Só Danço Samba",
-                "sodc",
-                0,
-                7,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE
-                    - PENALTY_GAP_START
-                    + BONUS_BOUNDARY_WHITE
-                    - PENALTY_GAP_START
-                    - PENALTY_GAP_EXTENSION,
-            ),
-            (
-                "Danço",
-                "danco",
-                0,
-                5,
-                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
-            ),
-            (
-                "DanÇo",
-                "danco",
-                0,
-                5,
-                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
-            ),
-            (
-                "xÇando",
-                "cando",
-                1,
-                6,
-                BONUS_CAMEL123 * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
-            ),
-        ],
-    )
-}
-
-#[test]
-fn test_unicode_v1() {
-    assert_matches(
-        true,
+        &[FuzzyGreedy, FuzzyOptimal],
         true,
         false,
         false,
@@ -534,41 +330,13 @@ fn test_unicode_v1() {
             (
                 "你好世界",
                 "你好",
-                0,
-                2,
+                &[0, 1],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE,
             ),
             (
                 "你好世界",
                 "你世",
-                0,
-                3,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER - PENALTY_GAP_START,
-            ),
-        ],
-    )
-}
-
-#[test]
-fn test_unicode() {
-    assert_matches(
-        false,
-        true,
-        false,
-        false,
-        &[
-            (
-                "你好世界",
-                "你好",
-                0,
-                2,
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY_WHITE,
-            ),
-            (
-                "你好世界",
-                "你世",
-                0,
-                3,
+                &[0, 2],
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER - PENALTY_GAP_START,
             ),
         ],
@@ -578,15 +346,14 @@ fn test_unicode() {
 #[test]
 fn test_long_str() {
     assert_matches(
-        false,
+        &[FuzzyGreedy, FuzzyOptimal],
         false,
         false,
         false,
         &[(
             &"x".repeat(u16::MAX as usize + 1),
             "xx",
-            0,
-            2,
+            &[0, 1],
             (BONUS_FIRST_CHAR_MULTIPLIER + 1) * BONUS_BOUNDARY_WHITE,
         )],
     );
@@ -595,19 +362,69 @@ fn test_long_str() {
 #[test]
 fn test_optimal() {
     assert_matches(
+        &[FuzzyOptimal],
         false,
         false,
         false,
-        false,
-        &[(
-            "axxx xx ",
-            "xx",
-            5,
-            7,
-            (BONUS_FIRST_CHAR_MULTIPLIER + 1) * BONUS_BOUNDARY_WHITE,
-        )],
-    )
+        &[
+            (
+                "axxx xx ",
+                "xx",
+                &[5, 6],
+                (BONUS_FIRST_CHAR_MULTIPLIER + 1) * BONUS_BOUNDARY_WHITE,
+            ),
+            (
+                "I\0I",
+                "\0",
+                &[1],
+                BONUS_FIRST_CHAR_MULTIPLIER * BONUS_NON_WORD,
+            ),
+            (
+                "SS!H",
+                "S!",
+                &[0, 2],
+                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_NON_WORD
+                    - PENALTY_GAP_START,
+            ),
+            (
+                "^^^\u{7f}\0\0E%\u{1a}^",
+                "^^\0E",
+                &[1, 2, 5, 6],
+                BONUS_NON_WORD * (BONUS_FIRST_CHAR_MULTIPLIER + 3)
+                    - PENALTY_GAP_START
+                    - PENALTY_GAP_EXTENSION,
+            ),
+            (
+                "Hٷ!!\0!!!\n\0\0\u{4}\u{c}\0\u{8}\0!\0\0\u{c}",
+                "\0!\0\0!",
+                &[4, 5, 9, 10, 16],
+                BONUS_NON_WORD * (BONUS_FIRST_CHAR_MULTIPLIER + 4)
+                    - 2 * PENALTY_GAP_START
+                    - 6 * PENALTY_GAP_EXTENSION,
+            ),
+        ],
+    );
 }
+// #[test]
+// fn test_greedy() {
+//     assert_matches(
+//         &[FuzzyGreedy],
+//         false,
+//         false,
+//         false,
+//         &[
+//             ("SS!H", "S!", &[1, 2], BONUS_NON_WORD),
+//             (
+//                 "]\0\0\0H\0\0\0rrrrrrrrrrrrrrrrrrrrrrrVVVVVVVV\0",
+//                 "H\0\0VV",
+//                 &[4, 5, 6, 31, 32],
+//                 BONUS_BOUNDARY * (BONUS_FIRST_CHAR_MULTIPLIER + 2) + 2 * BONUS_CAMEL123
+//                     - PENALTY_GAP_START
+//                     - 23 * PENALTY_GAP_EXTENSION,
+//             ),
+//         ],
+//     );
+// }
 
 #[test]
 fn test_reject() {
@@ -641,5 +458,7 @@ fn test_reject() {
         true,
         false,
         &[("Só Danço Samba", "sod"), ("Só Danço Samba", "soc")],
-    )
+    );
+    check!(small_haystack);
+    assert_not_matches(false, false, false, &[("ۂۂfoۂۂ", "foo")]);
 }

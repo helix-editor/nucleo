@@ -9,7 +9,7 @@ use crate::MatcherConfig;
 mod case_fold;
 mod normalize;
 
-pub trait Char: Copy + Eq + Ord + fmt::Display {
+pub(crate) trait Char: Copy + Eq + Ord + fmt::Display {
     const ASCII: bool;
     fn char_class(self, config: &MatcherConfig) -> CharClass;
     fn char_class_and_normalize(self, config: &MatcherConfig) -> (Self, CharClass);
