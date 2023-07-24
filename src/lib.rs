@@ -5,6 +5,7 @@ pub mod chars;
 mod config;
 #[cfg(test)]
 mod debug;
+mod exact;
 mod fuzzy_greedy;
 mod fuzzy_optimal;
 mod matrix;
@@ -67,6 +68,9 @@ impl Matcher {
         );
         match (haystack, needle_) {
             (Utf32Str::Ascii(haystack), Utf32Str::Ascii(needle)) => {
+                if let &[needle] = needle {
+                    return self.substring_match_1_ascii::<INDICES>(haystack, needle, indidies);
+                }
                 let (start, greedy_end, end) = self.prefilter_ascii(haystack, needle, false)?;
                 self.fuzzy_match_optimal::<INDICES, AsciiChar, AsciiChar>(
                     AsciiChar::cast(haystack),
@@ -83,6 +87,16 @@ impl Matcher {
                 None
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Ascii(needle)) => {
+                if let &[needle] = needle {
+                    let (start, _) = self.prefilter_non_ascii(haystack, needle_, true)?;
+                    let res = self.substring_match_1_non_ascii::<INDICES>(
+                        haystack,
+                        needle as char,
+                        start,
+                        indidies,
+                    );
+                    return Some(res);
+                }
                 let (start, end) = self.prefilter_non_ascii(haystack, needle_, false)?;
                 self.fuzzy_match_optimal::<INDICES, char, AsciiChar>(
                     haystack,
@@ -94,6 +108,12 @@ impl Matcher {
                 )
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Unicode(needle)) => {
+                if let &[needle] = needle {
+                    let (start, _) = self.prefilter_non_ascii(haystack, needle_, true)?;
+                    let res = self
+                        .substring_match_1_non_ascii::<INDICES>(haystack, needle, start, indidies);
+                    return Some(res);
+                }
                 let (start, end) = self.prefilter_non_ascii(haystack, needle_, false)?;
                 self.fuzzy_match_optimal::<INDICES, char, char>(
                     haystack,

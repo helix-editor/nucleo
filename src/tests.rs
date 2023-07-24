@@ -48,9 +48,11 @@ fn assert_matches(
             println!("xx {matched_indices:?} {algo:?}");
             let res = match algo {
                 Algorithm::FuzzyOptimal => {
+                    matched_indices.clear();
                     matcher.fuzzy_indices(haystack, needle, &mut matched_indices)
                 }
                 Algorithm::FuzzyGreedy => {
+                    matched_indices.clear();
                     matcher.fuzzy_indices_greedy(haystack, needle, &mut matched_indices)
                 }
             };
@@ -142,7 +144,7 @@ fn test_fuzzy() {
                 "/AutomatorDocument.icns",
                 "rdoc",
                 &[9, 10, 11, 12],
-                BONUS_CAMEL123 + BONUS_CONSECUTIVE * 2,
+                BONUS_CAMEL123 * 3,
             ),
             (
                 "/man1/zshcompctl.1",
@@ -395,12 +397,21 @@ fn test_optimal() {
                     - PENALTY_GAP_EXTENSION,
             ),
             (
-                "Hٷ!!\0!!!\n\0\0\u{4}\u{c}\0\u{8}\0!\0\0\u{c}",
-                "\0!\0\0!",
+                "Hٷ!!-!!!\n--\u{4}\u{c}-\u{8}-!\u{c}",
+                "-!--!",
                 &[4, 5, 9, 10, 16],
                 BONUS_NON_WORD * (BONUS_FIRST_CHAR_MULTIPLIER + 4)
                     - 2 * PENALTY_GAP_START
                     - 6 * PENALTY_GAP_EXTENSION,
+            ),
+            (
+                "C8Gۂ(GECGS",
+                "8GCG",
+                &[1, 2, 7, 8],
+                BONUS_CAMEL123 * (BONUS_FIRST_CHAR_MULTIPLIER + 1)
+                    - PENALTY_GAP_START
+                    - 3 * PENALTY_GAP_EXTENSION
+                    + BONUS_CONSECUTIVE,
             ),
         ],
     );

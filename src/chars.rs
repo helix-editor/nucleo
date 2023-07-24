@@ -19,7 +19,7 @@ pub(crate) trait Char: Copy + Eq + Ord + fmt::Display {
 /// repr tansparent wrapper around u8 with better formatting and PartialEq<char> implementation
 #[repr(transparent)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub(crate) struct AsciiChar(u8);
+pub(crate) struct AsciiChar(pub u8);
 
 impl AsciiChar {
     pub fn cast(bytes: &[u8]) -> &[AsciiChar] {

@@ -114,11 +114,8 @@ impl Matcher {
                 } else {
                     // Break consecutive chunk
                     if bonus > first_bonus {
-                        if bonus >= BONUS_BOUNDARY {
-                            first_bonus = bonus;
-                        } else {
-                            bonus = max(bonus, BONUS_CONSECUTIVE);
-                        }
+                        first_bonus = bonus;
+                        bonus = max(max(bonus, first_bonus), BONUS_CONSECUTIVE);
                     } else {
                         bonus = max(first_bonus, BONUS_CONSECUTIVE);
                     }
