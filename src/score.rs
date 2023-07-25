@@ -35,7 +35,7 @@ pub(crate) const BONUS_CONSECUTIVE: u16 = PENALTY_GAP_START + PENALTY_GAP_EXTENS
 // bonus points are given, e.g. "to-go" vs. "ongoing" on "og" or on "ogo".
 // The amount of the extra bonus should be limited so that the gap penalty is
 // still respected.
-pub(crate) const BONUS_FIRST_CHAR_MULTIPLIER: u16 = 2;
+pub(crate) const BONUS_FIRST_CHAR_MULTIPLIER: u16 = 1;
 
 impl MatcherConfig {
     #[inline]

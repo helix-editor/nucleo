@@ -9,5 +9,5 @@ unzip UCD.zip
 
 cd "${dir}"
 cargo install ucd-generate
-ucd-generate case-folding-simple /tmp/ucd-15.0.0 --chars > src/case_fold.rs
+ucd-generate case-folding-simple /tmp/ucd-15.0.0 --chars > src/chars/case_fold.rs
 rm -rf /tmp/ucd-15.0.0

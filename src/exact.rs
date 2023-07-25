@@ -78,9 +78,10 @@ impl Matcher {
             .checked_sub(1)
             .map(|i| haystack[i].char_class(&self.config))
             .unwrap_or(self.config.initial_char_class);
-        for (i, &c) in haystack.iter().enumerate() {
+        for (i, &c) in haystack[start..].iter().enumerate() {
             let (c, char_class) = c.char_class_and_normalize(&self.config);
             if c != needle {
+                println!("ups {c} {needle}");
                 continue;
             }
             let bonus = self.config.bonus_for(prev_class, char_class);
@@ -100,7 +101,7 @@ impl Matcher {
 
         if INDICES {
             indices.clear();
-            indices.push(max_pos);
+            indices.push(max_pos + start as u32);
         }
         max_score
     }

@@ -224,6 +224,19 @@ fn test_fuzzy() {
                     - PENALTY_GAP_START
                     - 23 * PENALTY_GAP_EXTENSION,
             ),
+            (
+                "\nץ&`@ `---\0\0\0\0",
+                "`@ `--\0\0",
+                &[3, 4, 5, 6, 7, 8, 10, 11],
+                BONUS_NON_WORD * (BONUS_FIRST_CHAR_MULTIPLIER + 3) + BONUS_BOUNDARY_WHITE * 4
+                    - PENALTY_GAP_START,
+            ),
+            (
+                " 1111111u11111uuu111",
+                "11111uuu1",
+                &[9, 10, 11, 12, 13, 14, 15, 16, 17],
+                BONUS_CAMEL123 * (BONUS_FIRST_CHAR_MULTIPLIER + 8),
+            ),
         ],
     );
 }
@@ -317,6 +330,7 @@ fn test_normalize() {
                 &[1, 2, 3, 4, 5],
                 BONUS_CAMEL123 * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
             ),
+            ("ۂ(GCGɴCG", "n", &[5], 0),
         ],
     )
 }
@@ -399,7 +413,7 @@ fn test_optimal() {
             (
                 "Hٷ!!-!!!\n--\u{4}\u{c}-\u{8}-!\u{c}",
                 "-!--!",
-                &[4, 5, 9, 10, 16],
+                &[4, 5, 13, 15, 16],
                 BONUS_NON_WORD * (BONUS_FIRST_CHAR_MULTIPLIER + 4)
                     - 2 * PENALTY_GAP_START
                     - 6 * PENALTY_GAP_EXTENSION,
@@ -412,6 +426,23 @@ fn test_optimal() {
                     - PENALTY_GAP_START
                     - 3 * PENALTY_GAP_EXTENSION
                     + BONUS_CONSECUTIVE,
+            ),
+            (
+                "\nץ&`@ `;;;\0\0\0\0",
+                "`@ `;;\0\0",
+                &[3, 4, 5, 6, 7, 9, 10, 11],
+                BONUS_NON_WORD * (BONUS_FIRST_CHAR_MULTIPLIER + 1)
+                    + BONUS_BOUNDARY_DELIMITER * 3
+                    + BONUS_BOUNDARY_WHITE * 3
+                    - PENALTY_GAP_START,
+            ),
+            (
+                "dddddd\0\0\0ddddfdddddd",
+                "dddddfddddd",
+                &[0, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_BOUNDARY * 10
+                    - PENALTY_GAP_START
+                    - 7 * PENALTY_GAP_EXTENSION,
             ),
         ],
     );

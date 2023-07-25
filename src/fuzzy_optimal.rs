@@ -65,7 +65,7 @@ fn next_m_score(p_score: i32, m_score: i32, bonus: u16, next_bonus: u16) -> Scor
     let consecutive_bonus = max(bonus, max(next_bonus, BONUS_CONSECUTIVE));
     let score_match = m_score + consecutive_bonus as i32;
     let score_skip = p_score + next_bonus as i32;
-    if score_match > score_skip {
+    if score_match >= score_skip {
         ScoreCell {
             score: score_match + SCORE_MATCH as i32,
             bonus: consecutive_bonus,
@@ -74,16 +74,24 @@ fn next_m_score(p_score: i32, m_score: i32, bonus: u16, next_bonus: u16) -> Scor
     } else {
         ScoreCell {
             score: score_skip + SCORE_MATCH as i32,
-            bonus: consecutive_bonus,
+            bonus: next_bonus,
             matched: false,
         }
     }
 }
 
 fn p_score(prev_p_score: i32, prev_m_score: i32) -> (i32, bool) {
-    let score_match = prev_m_score - PENALTY_GAP_START as i32;
-    let score_skip = prev_p_score - PENALTY_GAP_EXTENSION as i32;
-    if score_match > score_skip {
+    let score_match = if prev_m_score >= 0 {
+        (prev_m_score - PENALTY_GAP_START as i32).max(0)
+    } else {
+        i32::MIN / 2
+    };
+    let score_skip = if prev_p_score >= 0 {
+        (prev_p_score - PENALTY_GAP_EXTENSION as i32).max(0)
+    } else {
+        i32::MIN / 2
+    };
+    if score_match >= score_skip {
         (score_match, true)
     } else {
         (score_skip, false)

@@ -109,13 +109,15 @@ impl Char for char {
             return (c.0 as char, class);
         }
         let char_class = char_class_non_ascii(self);
-        if char_class == CharClass::Upper && config.ignore_case {
+        let mut case_fold = char_class == CharClass::Upper;
+        if config.normalize {
+            self = normalize::normalize(self);
+            case_fold = true
+        }
+        if case_fold && config.ignore_case {
             self = CASE_FOLDING_SIMPLE
                 .binary_search_by_key(&self, |(upper, _)| *upper)
                 .map_or(self, |idx| CASE_FOLDING_SIMPLE[idx].1)
-        }
-        if config.normalize {
-            self = normalize::normalize(self);
         }
         (self, char_class)
     }
