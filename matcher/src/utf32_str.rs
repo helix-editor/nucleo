@@ -1,9 +1,9 @@
 use std::ops::{Bound, RangeBounds};
 use std::{fmt, slice};
 
-/// A UTF32 encoded (char array) String that can be used as an input to fuzzy matching.
+/// A UTF32 encoded (char array) string that is used as an input to (fuzzy) matching.
 ///
-/// Usually rusts utf8 encoded strings are great. However during fuzzy matching
+/// Usually rusts' utf8 encoded strings are great. However during fuzzy matching
 /// operates on codepoints (it should operate on graphemes but that's too much
 /// hassle to deal with). We want to quickly iterate these codeboints between
 /// (up to 5 times) during matching.

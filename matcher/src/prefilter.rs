@@ -30,7 +30,8 @@ impl Matcher {
         only_greedy: bool,
     ) -> Option<(usize, usize, usize)> {
         if self.config.ignore_case {
-            let start = find_ascii_ignore_case(needle[0], haystack)?;
+            let start =
+                find_ascii_ignore_case(needle[0], &haystack[..haystack.len() - needle.len() + 1])?;
             let mut greedy_end = start + 1;
             haystack = &haystack[greedy_end..];
             for &c in &needle[1..] {
@@ -47,7 +48,7 @@ impl Matcher {
                 Some((start, greedy_end, end))
             }
         } else {
-            let start = memchr(needle[0], haystack)?;
+            let start = memchr(needle[0], &haystack[..haystack.len() - needle.len() + 1])?;
             let mut greedy_end = start + 1;
             haystack = &haystack[greedy_end..];
             for &c in &needle[1..] {
@@ -72,7 +73,7 @@ impl Matcher {
         only_greedy: bool,
     ) -> Option<(usize, usize)> {
         let needle_char = needle.get(0);
-        let start = haystack
+        let start = haystack[..haystack.len() - needle.len() + 1]
             .iter()
             .position(|c| c.normalize(&self.config) == needle_char)?;
         let needle_char = needle.last();
@@ -80,15 +81,10 @@ impl Matcher {
             Some((start, start + 1))
         } else {
             let end = haystack.len()
-                - haystack[start..]
+                - haystack[start + 1..]
                     .iter()
                     .rev()
                     .position(|c| c.normalize(&self.config) == needle_char)?;
-            // matches are never possible in this case
-            if end - start < needle.len() {
-                cov_mark::hit!(small_haystack);
-                return None;
-            }
 
             Some((start, end))
         }

@@ -21,7 +21,7 @@ use std::fmt::{Debug, Formatter, Result};
 
 impl Debug for ScoreCell {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "({}, {}, {})", self.score, self.bonus, self.matched)
+        write!(f, "({}, {})", self.score, self.matched)
     }
 }
 

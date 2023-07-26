@@ -1,3 +1,5 @@
+use std::mem::transmute;
+
 const DATA1: [(char, char); 277] = [
     ('\u{00C0}', 'A'), //  WITH GRAVE, LATIN CAPITAL LETTER
     ('\u{00C1}', 'A'), //  WITH ACUTE, LATIN CAPITAL LETTER
@@ -471,7 +473,7 @@ const fn generate_table<const LEN: usize>(sparse_data: &[(char, char)]) -> [char
     let mut i = 0u32;
     let mut j = 0;
     while i < table.len() as u32 {
-        let Some(key) = char::from_u32(start + i) else { panic!("invalid char") };
+        let key = unsafe { transmute(start + i) };
         if sparse_data[j].0 == key {
             table[i as usize] = DATA1[j].1;
             j += 1;

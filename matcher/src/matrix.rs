@@ -88,7 +88,6 @@ impl<C: Char> MatrixLayout<C> {
 #[derive(Clone, Copy)]
 pub(crate) struct ScoreCell {
     pub score: i32,
-    pub bonus: u16,
     pub matched: bool,
 }
 

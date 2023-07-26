@@ -61,20 +61,18 @@ impl Matcher {
     }
 }
 
-fn next_m_score(p_score: i32, m_score: i32, bonus: u16, next_bonus: u16) -> ScoreCell {
-    let consecutive_bonus = max(bonus, max(next_bonus, BONUS_CONSECUTIVE));
+fn next_m_score(p_score: i32, m_score: i32, bonus: u16) -> ScoreCell {
+    let consecutive_bonus = max(bonus, BONUS_CONSECUTIVE);
     let score_match = m_score + consecutive_bonus as i32;
-    let score_skip = p_score + next_bonus as i32;
-    if score_match >= score_skip {
+    let score_skip = p_score + bonus as i32;
+    if score_match > score_skip {
         ScoreCell {
             score: score_match + SCORE_MATCH as i32,
-            bonus: consecutive_bonus,
             matched: true,
         }
     } else {
         ScoreCell {
             score: score_skip + SCORE_MATCH as i32,
-            bonus: next_bonus,
             matched: false,
         }
     }
@@ -91,7 +89,7 @@ fn p_score(prev_p_score: i32, prev_m_score: i32) -> (i32, bool) {
     } else {
         i32::MIN / 2
     };
-    if score_match >= score_skip {
+    if score_match > score_skip {
         (score_match, true)
     } else {
         (score_skip, false)
@@ -185,15 +183,10 @@ impl<H: Char> MatcherDataView<'_, H> {
             let (p_score, p_matched) = p_score(prev_p_score, prev_m_score);
             let m_cell = if FIRST_ROW {
                 if c == needle_char {
-                    // TODO: do we really want to start with a penalty here??
-                    let mut cell =
-                        next_m_score(0, i32::MIN / 2, 0, bonus * BONUS_FIRST_CHAR_MULTIPLIER);
-                    cell.bonus = *bonus;
-                    cell
+                    next_m_score(0, i32::MIN / 2, bonus * BONUS_FIRST_CHAR_MULTIPLIER)
                 } else {
                     ScoreCell {
                         score: i32::MIN / 2,
-                        bonus: 0,
                         matched: false,
                     }
                 }
@@ -215,15 +208,10 @@ impl<H: Char> MatcherDataView<'_, H> {
             let (p_score, p_matched) = p_score(prev_p_score, prev_m_score);
             let m_cell = if FIRST_ROW {
                 if c[0] == needle_char {
-                    // TODO: do we really want to start with a penalty here??
-                    let mut cell =
-                        next_m_score(0, i32::MIN / 2, 0, bonus[0] * BONUS_FIRST_CHAR_MULTIPLIER);
-                    cell.bonus = bonus[0];
-                    cell
+                    next_m_score(0, i32::MIN / 2, bonus[0] * BONUS_FIRST_CHAR_MULTIPLIER)
                 } else {
                     ScoreCell {
                         score: i32::MIN / 2,
-                        bonus: 0,
                         matched: false,
                     }
                 }
@@ -231,11 +219,10 @@ impl<H: Char> MatcherDataView<'_, H> {
                 *score_cell
             };
             *score_cell = if c[1] == next_needle_char {
-                next_m_score(p_score, m_cell.score, m_cell.bonus, bonus[1])
+                next_m_score(p_score, m_cell.score, bonus[1])
             } else {
                 ScoreCell {
                     score: i32::MIN / 2,
-                    bonus: 0,
                     matched: false,
                 }
             };
@@ -284,8 +271,9 @@ impl<H: Char> MatcherDataView<'_, H> {
         matrix_len: usize,
         start: u32,
     ) {
-        indices.clear();
-        indices.resize(self.row_offs.len(), 0);
+        let indices_start = indices.len();
+        indices.resize(indices_start + self.row_offs.len(), 0);
+        let indices = &mut indices[indices_start..];
         let last_row_off = *self.row_offs.last().unwrap();
         indices[self.row_offs.len() - 1] = start + max_score_end as u32 + last_row_off as u32;
 

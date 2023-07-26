@@ -1,3 +1,1 @@
-exclude = ["src/tests.rs", "src/debug.rs", "src/chars/normalize.rs"]
-[report]
-out = ["Html", "Xml"]
+exclude = ["matcher/src/tests.rs", "matcher/src/debug.rs", "matcher/src/chars/normalize.rs"]
