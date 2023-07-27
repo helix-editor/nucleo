@@ -1,6 +1,7 @@
 use std::alloc::{alloc_zeroed, dealloc, handle_alloc_error, Layout};
 use std::marker::PhantomData;
 use std::mem::size_of;
+use std::panic::{RefUnwindSafe, UnwindSafe};
 use std::ptr::{slice_from_raw_parts_mut, NonNull};
 
 use crate::chars::Char;
@@ -125,6 +126,10 @@ struct MatcherData {
 }
 
 pub(crate) struct MatrixSlab(NonNull<u8>);
+unsafe impl Sync for MatrixSlab {}
+unsafe impl Send for MatrixSlab {}
+impl UnwindSafe for MatrixSlab {}
+impl RefUnwindSafe for MatrixSlab {}
 
 impl MatrixSlab {
     pub fn new() -> Self {

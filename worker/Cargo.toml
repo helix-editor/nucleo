@@ -1,5 +1,5 @@
 [package]
-name = "nucleo-matcher"
+name = "nucleo"
 authors = ["Pascal Kuthe <pascal.kuthe@semimod.de>"]
 version = "0.1.0"
 edition = "2021"
@@ -7,8 +7,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-memchr = "2.5.0"
-cov-mark = { version = "1.1.0", default-features = false }
-
-[dev-dependencies]
-cov-mark = { version = "1.1.0", default-features = true }
+nucleo-matcher = { version = "0.1", path = "../matcher" }
+parking_lot = { version = "0.12.1", features = ["send_guard", "arc_lock"]}
+rayon = "1.7.0"

@@ -1,0 +1,13 @@
+[package]
+name = "benches"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nucleo-matcher = { version = "0.1", path = "../matcher" }
+nucleo = { version = "0.1", path = "../worker" }
+brunch = "0.5.0"
+fuzzy-matcher = "0.3.7"
+walkdir = "2"

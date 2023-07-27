@@ -58,6 +58,24 @@ pub struct Matcher {
     slab: MatrixSlab,
 }
 
+// this is just here for convenience not ruse if we should implement this
+impl Clone for Matcher {
+    fn clone(&self) -> Self {
+        Matcher {
+            config: self.config,
+            slab: MatrixSlab::new(),
+        }
+    }
+}
+
+impl std::fmt::Debug for Matcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Matcher")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Default for Matcher {
     fn default() -> Self {
         Matcher {
@@ -504,12 +522,16 @@ impl Matcher {
                 return None;
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Ascii(needle)) => {
-                haystack
-                    .iter()
-                    .map(|c| c.normalize(&self.config))
-                    .eq(AsciiChar::cast(needle)
+                let matched =
+                    haystack
                         .iter()
-                        .map(|c| c.normalize(&self.config)));
+                        .map(|c| c.normalize(&self.config))
+                        .eq(AsciiChar::cast(needle)
+                            .iter()
+                            .map(|c| c.normalize(&self.config)));
+                if !matched {
+                    return None;
+                }
 
                 self.calculate_score::<INDICES, _, _>(
                     haystack,

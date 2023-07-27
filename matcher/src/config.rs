@@ -6,10 +6,10 @@ use crate::score::BONUS_BOUNDARY;
 pub struct MatcherConfig {
     pub delimiter_chars: &'static [u8],
     /// Extra bonus for word boundary after whitespace character or beginning of the string
-    pub bonus_boundary_white: u16,
+    pub(crate) bonus_boundary_white: u16,
 
-    // Extra bonus for word boundary after slash, colon, semi-colon, and comma
-    pub bonus_boundary_delimiter: u16,
+    /// Extra bonus for word boundary after slash, colon, semi-colon, and comma
+    pub(crate) bonus_boundary_delimiter: u16,
     pub initial_char_class: CharClass,
     /// Whether to normalize latin script characters to ASCII
     /// this significantly degrades performance so its not recommended
