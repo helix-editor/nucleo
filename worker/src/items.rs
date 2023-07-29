@@ -8,13 +8,22 @@ pub(crate) struct ItemCache {
     evicted: Vec<Item>,
 }
 impl ItemCache {
+    pub(crate) fn new() -> Self {
+        Self {
+            live: Vec::with_capacity(1024),
+            evicted: Vec::new(),
+        }
+    }
+
     pub(crate) fn clear(&mut self) {
         if self.evicted.is_empty() {
+            self.evicted.reserve(1024);
             swap(&mut self.evicted, &mut self.live)
         } else {
             self.evicted.append(&mut self.live)
         }
     }
+
     pub(crate) fn cleared(&self) -> bool {
         !self.evicted.is_empty()
     }
@@ -24,19 +33,31 @@ impl ItemCache {
             cols: Box::leak(item).into(),
         })
     }
+
+    pub(crate) fn get(&mut self) -> &mut [Item] {
+        &mut self.live
+    }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub(crate) struct Item {
+#[derive(PartialEq, Eq, Clone)]
+pub struct Item {
     // TODO: small vec optimization??
     cols: NonNull<[Utf32String]>,
+}
+
+impl std::fmt::Debug for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ItemText")
+            .field("cols", &self.cols())
+            .finish()
+    }
 }
 
 unsafe impl Send for Item {}
 unsafe impl Sync for Item {}
 
 impl Item {
-    fn cols(&self) -> &[Utf32String] {
+    pub fn cols(&self) -> &[Utf32String] {
         // safety: cols is basically a box and treated the same as a box,
         // however there can be other references  so using a box (unique ptr)
         // would be an alias violation
@@ -68,6 +89,12 @@ pub(crate) struct ItemsSnapshot {
 }
 
 impl ItemsSnapshot {
+    pub(crate) fn new() -> Self {
+        Self {
+            items: Vec::with_capacity(1024),
+        }
+    }
+
     pub(crate) fn outdated(&self, items: &ItemCache) -> bool {
         items.live.len() != self.items.len()
     }

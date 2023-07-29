@@ -138,15 +138,9 @@ pub use normalize::normalize;
 
 #[inline(always)]
 pub fn to_lower_case(c: char) -> char {
-    if c >= 'A' && c <= 'Z' {
-        char::from_u32(c as u32 + 32).unwrap()
-    } else if !c.is_ascii() {
-        CASE_FOLDING_SIMPLE
-            .binary_search_by_key(&c, |(upper, _)| *upper)
-            .map_or(c, |idx| CASE_FOLDING_SIMPLE[idx].1)
-    } else {
-        c
-    }
+    CASE_FOLDING_SIMPLE
+        .binary_search_by_key(&c, |(upper, _)| *upper)
+        .map_or(c, |idx| CASE_FOLDING_SIMPLE[idx].1)
 }
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Copy, Clone, Hash)]

@@ -1,10 +1,11 @@
 [package]
 name = "nucleo"
+description = "plug and play high performance fuzzy matcher"
 authors = ["Pascal Kuthe <pascal.kuthe@semimod.de>"]
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MPL-2.0"
+repository = "https://github.com/helix-editor/nucleo"
 
 [dependencies]
 nucleo-matcher = { version = "0.1", path = "../matcher" }
