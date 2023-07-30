@@ -32,10 +32,11 @@ impl MatcherConfig {
 
 impl MatcherConfig {
     pub fn set_match_paths(&mut self) {
+        // compared to fzf we include
         if cfg!(windows) {
-            self.delimiter_chars = b"/\\";
+            self.delimiter_chars = b"/:\\";
         } else {
-            self.delimiter_chars = b"/";
+            self.delimiter_chars = b"/:";
         }
         self.bonus_boundary_white = BONUS_BOUNDARY;
         self.initial_char_class = CharClass::Delimiter;
