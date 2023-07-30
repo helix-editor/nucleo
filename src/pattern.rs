@@ -65,7 +65,7 @@ impl PatternAtom {
             let mut needle_ = Vec::with_capacity(needle.len());
             if escape_whitespace {
                 let mut saw_backslash = false;
-                for mut c in needle.chars() {
+                for mut c in chars::graphemes(needle) {
                     if saw_backslash {
                         if c == ' ' {
                             needle_.push(' ');
@@ -88,6 +88,21 @@ impl PatternAtom {
                     }
                     needle_.push(c);
                 }
+            } else {
+                let chars = chars::graphemes(needle).map(|mut c| {
+                    if normalize {
+                        c = chars::normalize(c);
+                    }
+                    match case {
+                        CaseMatching::Ignore => c = chars::to_lower_case(c),
+                        CaseMatching::Smart => {
+                            ignore_case = ignore_case && !c.is_uppercase();
+                        }
+                        CaseMatching::Respect => (),
+                    }
+                    c
+                });
+                needle_.extend(chars);
             };
             Utf32String::Unicode(needle_.into_boxed_slice())
         };

@@ -4,7 +4,7 @@ use std::fmt;
 use std::mem::take;
 use std::ops::{Bound, RangeBounds};
 
-use nucleo_matcher::Utf32Str;
+use nucleo_matcher::{chars, Utf32Str};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Utf32String {
@@ -94,12 +94,13 @@ impl Utf32String {
                 *self = Self::Ascii(bytes.into_boxed_str());
                 return;
             }
-            Utf32String::Ascii(bytes) => bytes.chars().collect(),
+            Utf32String::Ascii(bytes) => bytes.bytes().map(|c| c as char).collect(),
             Utf32String::Unicode(codepoints) => Vec::from(codepoints),
         };
-        codeboints.extend(text.chars());
+        codeboints.extend(chars::graphemes(text));
         *self = Utf32String::Unicode(codeboints.into_boxed_slice());
     }
+
     #[inline]
     pub fn push(&mut self, c: char) {
         let mut codeboints = match take(self) {
@@ -109,7 +110,7 @@ impl Utf32String {
                 *self = Self::Ascii(bytes.into_boxed_str());
                 return;
             }
-            Utf32String::Ascii(bytes) => bytes.chars().collect(),
+            Utf32String::Ascii(bytes) => bytes.bytes().map(|c| c as char).collect(),
             Utf32String::Unicode(codepoints) => Vec::from(codepoints),
         };
         codeboints.push(c);
@@ -123,7 +124,7 @@ impl From<&str> for Utf32String {
         if value.is_ascii() {
             Self::Ascii(value.to_owned().into_boxed_str())
         } else {
-            Self::Unicode(value.chars().collect())
+            Self::Unicode(chars::graphemes(value).collect())
         }
     }
 }
@@ -133,7 +134,7 @@ impl From<Box<str>> for Utf32String {
         if value.is_ascii() {
             Self::Ascii(value)
         } else {
-            Self::Unicode(value.chars().collect())
+            Self::Unicode(chars::graphemes(&value).collect())
         }
     }
 }

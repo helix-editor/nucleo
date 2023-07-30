@@ -135,6 +135,7 @@ impl Char for char {
 }
 
 pub use normalize::normalize;
+use unicode_segmentation::UnicodeSegmentation;
 
 #[inline(always)]
 pub fn to_lower_case(c: char) -> char {
@@ -153,4 +154,15 @@ pub enum CharClass {
     Upper,
     Letter,
     Number,
+}
+
+/// nucleo can not match graphemes as single units to work around
+/// that we only use the first codepoint of each grapheme
+pub fn graphemes(text: &str) -> impl Iterator<Item = char> + '_ {
+    text.graphemes(true).map(|grapheme| {
+        grapheme
+            .chars()
+            .next()
+            .expect("graphemes must be non-empty")
+    })
 }

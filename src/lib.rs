@@ -9,11 +9,11 @@ use crate::worker::Worker;
 use parking_lot::lock_api::ArcMutexGuard;
 use rayon::ThreadPool;
 
-pub use crate::query::{CaseMatching, MultiPattern, Pattern, PatternKind};
+pub use crate::pattern::{CaseMatching, MultiPattern, Pattern, PatternKind};
 pub use crate::utf32_string::Utf32String;
 
 mod items;
-mod query;
+mod pattern;
 mod utf32_string;
 mod worker;
 pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str};
@@ -124,14 +124,14 @@ impl<T: Sync + Send> Nucleo<T> {
         self.should_notify.store(false, atomic::Ordering::Relaxed);
         let status = self.pattern.status();
         let items = self.items.cache.lock_arc();
-        let canceled = status != query::Status::Unchanged || items.cleared();
+        let canceled = status != pattern::Status::Unchanged || items.cleared();
         let res = self.tick_inner(timeout, canceled, items, status);
         if !canceled {
             self.should_notify.store(true, atomic::Ordering::Relaxed);
             return res;
         }
         let items = self.items.cache.lock_arc();
-        let res = self.tick_inner(timeout, false, items, query::Status::Unchanged);
+        let res = self.tick_inner(timeout, false, items, pattern::Status::Unchanged);
         self.should_notify.store(true, atomic::Ordering::Relaxed);
         res
     }
@@ -141,7 +141,7 @@ impl<T: Sync + Send> Nucleo<T> {
         timeout: u64,
         canceled: bool,
         items: ArcMutexGuard<RawMutex, ItemCache>,
-        status: query::Status,
+        status: pattern::Status,
     ) -> Status {
         let mut inner = if canceled {
             self.pattern.reset_status();

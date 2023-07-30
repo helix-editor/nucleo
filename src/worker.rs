@@ -8,7 +8,7 @@ use parking_lot::RawMutex;
 use rayon::{prelude::*, ThreadPool};
 
 use crate::items::{ItemCache, ItemsSnapshot};
-use crate::query::{self, MultiPattern};
+use crate::pattern::{self, MultiPattern};
 use crate::Match;
 
 struct Matchers(Box<[UnsafeCell<nucleo_matcher::Matcher>]>);
@@ -76,7 +76,7 @@ impl Worker {
     pub(crate) unsafe fn run(
         &mut self,
         items_lock: ArcMutexGuard<RawMutex, ItemCache>,
-        query_status: query::Status,
+        query_status: pattern::Status,
     ) {
         self.running = true;
         let mut last_scored_item = self.items.len();
@@ -84,7 +84,7 @@ impl Worker {
         drop(items_lock);
 
         // TODO: be smarter around reusing past results for rescoring
-        if cleared || query_status == query::Status::Rescore {
+        if cleared || query_status == pattern::Status::Rescore {
             self.matches.clear();
             last_scored_item = 0;
         }
@@ -103,7 +103,7 @@ impl Worker {
             }
             return;
         }
-        if query_status != query::Status::Unchanged && !self.matches.is_empty() {
+        if query_status != pattern::Status::Unchanged && !self.matches.is_empty() {
             self.matches
                 .par_iter_mut()
                 .take_any_while(|_| !self.canceled.load(atomic::Ordering::Relaxed))

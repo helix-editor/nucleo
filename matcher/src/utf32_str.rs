@@ -43,7 +43,10 @@ impl<'a> Utf32Str<'a> {
             Utf32Str::Ascii(str.as_bytes())
         } else {
             buf.clear();
-            buf.extend(str.chars());
+            buf.extend(crate::chars::graphemes(str));
+            if buf.iter().all(|c| c.is_ascii()) {
+                return Utf32Str::Ascii(str.as_bytes());
+            }
             Utf32Str::Unicode(&*buf)
         }
     }
