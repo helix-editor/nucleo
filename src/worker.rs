@@ -135,12 +135,12 @@ impl Worker {
         }
 
         if !self.canceled.load(atomic::Ordering::Relaxed) {
-            // TODO: cancel sort in progess?
+            // TODO: cancel sort in progress?
             self.matches.par_sort_unstable_by(|match1, match2| {
                 match2.score.cmp(&match1.score).then_with(|| {
                     // the tie breaker is comparitevly rarely needed so we keep it
-                    // in a branch especially beacuse we need to acceess the items
-                    // array here which invovles some pointer chasing
+                    // in a branch especially because we need to access the items
+                    // array here which involves some pointer chasing
                     let item1 = &items[match1.idx as usize];
                     let item2 = &items[match2.idx as usize];
                     (item1.len, match1.idx).cmp(&(item2.len, match2.idx))

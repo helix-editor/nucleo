@@ -66,7 +66,7 @@ impl<T: Sync + Send> Items<T> {
 }
 
 pub struct Nucleo<T: Sync + Send> {
-    // the way the API is build we totally don't actually neeed these to be Arcs
+    // the way the API is build we totally don't actually need these to be Arcs
     // but this lets us avoid some unsafe
     worker: Arc<Mutex<Worker>>,
     canceled: Arc<AtomicBool>,
@@ -182,7 +182,7 @@ impl<T: Sync + Send> Drop for Nucleo<T> {
     }
 }
 /// convenicne function to easily fuzzy match
-/// on a (relatievly small list of inputs). This is not recommended for building a full tui
+/// on a (relatively small list of inputs). This is not recommended for building a full tui
 /// application that can match large numbers of matches as all matching is done on the current
 /// thread, effectively blocking the UI
 pub fn fuzzy_match<T: AsRef<str>>(

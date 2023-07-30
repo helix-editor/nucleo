@@ -67,7 +67,7 @@ impl Item {
 impl Drop for Item {
     fn drop(&mut self) {
         // safety: cols is basically a box and treated the same as a box,
-        // however there can be other references (that won't be accesed
+        // however there can be other references (that won't be accessed
         // anymore at this point) so using a box (unique ptr) would be an alias
         // violation
         unsafe { drop(Box::from_raw(self.cols.as_ptr())) }
