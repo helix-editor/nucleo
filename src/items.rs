@@ -89,9 +89,16 @@ pub(crate) struct ItemsSnapshot {
 }
 
 impl ItemsSnapshot {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(items: &ItemCache) -> Self {
         Self {
-            items: Vec::with_capacity(1024),
+            items: items
+                .live
+                .iter()
+                .map(|item| ItemSnapshot {
+                    cols: item.cols,
+                    len: item.cols().iter().map(|s| s.len() as u32).sum(),
+                })
+                .collect(),
         }
     }
 
@@ -104,7 +111,7 @@ impl ItemsSnapshot {
     }
 
     pub(crate) fn update(&mut self, items: &ItemCache) -> bool {
-        let cleared = items.evicted.is_empty();
+        let cleared = !items.evicted.is_empty();
         // drop in another thread to ensure we don't wait for a long drop here
         if cleared {
             self.items.clear();

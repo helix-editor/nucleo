@@ -1,5 +1,7 @@
 use core::slice;
+use std::borrow::Cow;
 use std::fmt;
+use std::mem::take;
 use std::ops::{Bound, RangeBounds};
 
 use nucleo_matcher::Utf32Str;
@@ -11,6 +13,12 @@ pub enum Utf32String {
     Ascii(Box<str>),
     /// A string represented as an array of unicode codepoints (basically UTF-32).
     Unicode(Box<[char]>),
+}
+
+impl Default for Utf32String {
+    fn default() -> Self {
+        Self::Ascii(String::new().into_boxed_str())
+    }
 }
 impl Utf32String {
     #[inline]
@@ -48,31 +56,69 @@ impl Utf32String {
         }
     }
 
+    #[inline]
     pub fn is_ascii(&self) -> bool {
         matches!(self, Utf32String::Ascii(_))
     }
 
+    #[inline]
     pub fn get(&self, idx: u32) -> char {
         match self {
             Utf32String::Ascii(bytes) => bytes.as_bytes()[idx as usize] as char,
             Utf32String::Unicode(codepoints) => codepoints[idx as usize],
         }
     }
+
+    #[inline]
     pub fn last(&self) -> char {
         match self {
             Utf32String::Ascii(bytes) => bytes.as_bytes()[bytes.len() - 1] as char,
             Utf32String::Unicode(codepoints) => codepoints[codepoints.len() - 1],
         }
     }
+
+    #[inline]
     pub fn chars(&self) -> Chars<'_> {
         match self {
             Utf32String::Ascii(bytes) => Chars::Ascii(bytes.as_bytes().iter()),
             Utf32String::Unicode(codepoints) => Chars::Unicode(codepoints.iter()),
         }
     }
+
+    #[inline]
+    pub fn push_str(&mut self, text: &str) {
+        let mut codeboints = match take(self) {
+            Utf32String::Ascii(bytes) if text.is_ascii() => {
+                let mut bytes = bytes.into_string();
+                bytes.push_str(text);
+                *self = Self::Ascii(bytes.into_boxed_str());
+                return;
+            }
+            Utf32String::Ascii(bytes) => bytes.chars().collect(),
+            Utf32String::Unicode(codepoints) => Vec::from(codepoints),
+        };
+        codeboints.extend(text.chars());
+        *self = Utf32String::Unicode(codeboints.into_boxed_slice());
+    }
+    #[inline]
+    pub fn push(&mut self, c: char) {
+        let mut codeboints = match take(self) {
+            Utf32String::Ascii(bytes) if c.is_ascii() => {
+                let mut bytes = bytes.into_string();
+                bytes.push(c);
+                *self = Self::Ascii(bytes.into_boxed_str());
+                return;
+            }
+            Utf32String::Ascii(bytes) => bytes.chars().collect(),
+            Utf32String::Unicode(codepoints) => Vec::from(codepoints),
+        };
+        codeboints.push(c);
+        *self = Utf32String::Unicode(codeboints.into_boxed_slice());
+    }
 }
 
 impl From<&str> for Utf32String {
+    #[inline]
     fn from(value: &str) -> Self {
         if value.is_ascii() {
             Self::Ascii(value.to_owned().into_boxed_str())
@@ -91,9 +137,21 @@ impl From<Box<str>> for Utf32String {
         }
     }
 }
+
 impl From<String> for Utf32String {
+    #[inline]
     fn from(value: String) -> Self {
         value.into_boxed_str().into()
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for Utf32String {
+    #[inline]
+    fn from(value: Cow<'a, str>) -> Self {
+        match value {
+            Cow::Borrowed(value) => value.into(),
+            Cow::Owned(value) => value.into(),
+        }
     }
 }
 
@@ -104,6 +162,7 @@ pub enum Chars<'a> {
 impl<'a> Iterator for Chars<'a> {
     type Item = char;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Chars::Ascii(iter) => iter.next().map(|&c| c as char),

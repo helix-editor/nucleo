@@ -125,26 +125,41 @@ impl Matcher {
 
     fn fuzzy_matcher_impl<const INDICES: bool>(
         &mut self,
-        haystack: Utf32Str<'_>,
+        haystack_: Utf32Str<'_>,
         needle_: Utf32Str<'_>,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        if needle_.len() > haystack.len() || needle_.is_empty() {
+        if needle_.len() > haystack_.len() || needle_.is_empty() {
             return None;
         }
-        if needle_.len() == haystack.len() {
-            return self.exact_match_impl::<INDICES>(haystack, needle_, indices);
+        if needle_.len() == haystack_.len() {
+            return self.exact_match_impl::<INDICES>(
+                haystack_,
+                needle_,
+                0,
+                haystack_.len(),
+                indices,
+            );
         }
         assert!(
-            haystack.len() <= u32::MAX as usize,
+            haystack_.len() <= u32::MAX as usize,
             "fuzzy matching is only support for up to 2^32-1 codepoints"
         );
-        match (haystack, needle_) {
+        match (haystack_, needle_) {
             (Utf32Str::Ascii(haystack), Utf32Str::Ascii(needle)) => {
                 if let &[needle] = needle {
                     return self.substring_match_1_ascii::<INDICES>(haystack, needle, indices);
                 }
                 let (start, greedy_end, end) = self.prefilter_ascii(haystack, needle, false)?;
+                if needle_.len() == end - start {
+                    return Some(self.calculate_score::<INDICES, _, _>(
+                        AsciiChar::cast(haystack),
+                        AsciiChar::cast(needle),
+                        start,
+                        greedy_end,
+                        indices,
+                    ));
+                }
                 self.fuzzy_match_optimal::<INDICES, AsciiChar, AsciiChar>(
                     AsciiChar::cast(haystack),
                     AsciiChar::cast(needle),
@@ -171,6 +186,10 @@ impl Matcher {
                     return Some(res);
                 }
                 let (start, end) = self.prefilter_non_ascii(haystack, needle_, false)?;
+                if needle_.len() == end - start {
+                    return self
+                        .exact_match_impl::<INDICES>(haystack_, needle_, start, end, indices);
+                }
                 self.fuzzy_match_optimal::<INDICES, char, AsciiChar>(
                     haystack,
                     AsciiChar::cast(needle),
@@ -188,6 +207,10 @@ impl Matcher {
                     return Some(res);
                 }
                 let (start, end) = self.prefilter_non_ascii(haystack, needle_, false)?;
+                if needle_.len() == end - start {
+                    return self
+                        .exact_match_impl::<INDICES>(haystack_, needle_, start, end, indices);
+                }
                 self.fuzzy_match_optimal::<INDICES, char, char>(
                     haystack,
                     needle,
@@ -243,7 +266,7 @@ impl Matcher {
             return None;
         }
         if needle_.len() == haystack.len() {
-            return self.exact_match_impl::<INDICES>(haystack, needle_, indices);
+            return self.exact_match_impl::<INDICES>(haystack, needle_, 0, haystack.len(), indices);
         }
         assert!(
             haystack.len() <= u32::MAX as usize,
@@ -252,6 +275,15 @@ impl Matcher {
         match (haystack, needle_) {
             (Utf32Str::Ascii(haystack), Utf32Str::Ascii(needle)) => {
                 let (start, greedy_end, _) = self.prefilter_ascii(haystack, needle, true)?;
+                if needle_.len() == greedy_end - start {
+                    return Some(self.calculate_score::<INDICES, _, _>(
+                        AsciiChar::cast(haystack),
+                        AsciiChar::cast(needle),
+                        start,
+                        greedy_end,
+                        indices,
+                    ));
+                }
                 self.fuzzy_match_greedy_::<INDICES, AsciiChar, AsciiChar>(
                     AsciiChar::cast(haystack),
                     AsciiChar::cast(needle),
@@ -330,7 +362,7 @@ impl Matcher {
             return None;
         }
         if needle_.len() == haystack.len() {
-            return self.exact_match_impl::<INDICES>(haystack, needle_, indices);
+            return self.exact_match_impl::<INDICES>(haystack, needle_, 0, haystack.len(), indices);
         }
         assert!(
             haystack.len() <= u32::MAX as usize,
@@ -393,7 +425,7 @@ impl Matcher {
     ///
     /// See the [matcher documentation](crate::Matcher) for more details.
     pub fn exact_match(&mut self, haystack: Utf32Str<'_>, needle: Utf32Str<'_>) -> Option<u16> {
-        self.exact_match_impl::<false>(haystack, needle, &mut Vec::new())
+        self.exact_match_impl::<false>(haystack, needle, 0, haystack.len(), &mut Vec::new())
     }
 
     /// Checks whether needle and haystack match exactly and compute the matches indices.
@@ -407,7 +439,7 @@ impl Matcher {
         needle: Utf32Str<'_>,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        self.exact_match_impl::<true>(haystack, needle, indices)
+        self.exact_match_impl::<true>(haystack, needle, 0, haystack.len(), indices)
     }
 
     /// Checks whether needle is a prefix of the haystack.
@@ -419,7 +451,7 @@ impl Matcher {
         if haystack.len() < needle.len() {
             None
         } else {
-            self.exact_match_impl::<false>(haystack.slice(..needle.len()), needle, &mut Vec::new())
+            self.exact_match_impl::<false>(haystack, needle, 0, needle.len(), &mut Vec::new())
         }
     }
 
@@ -437,7 +469,7 @@ impl Matcher {
         if haystack.len() < needle.len() {
             None
         } else {
-            self.exact_match_impl::<true>(haystack.slice(..needle.len()), needle, indices)
+            self.exact_match_impl::<true>(haystack, needle, 0, needle.len(), indices)
         }
     }
 
@@ -451,8 +483,10 @@ impl Matcher {
             None
         } else {
             self.exact_match_impl::<false>(
-                haystack.slice(haystack.len() - needle.len()..),
+                haystack,
                 needle,
+                haystack.len() - needle.len(),
+                haystack.len(),
                 &mut Vec::new(),
             )
         }
@@ -473,8 +507,10 @@ impl Matcher {
             None
         } else {
             self.exact_match_impl::<true>(
-                haystack.slice(haystack.len() - needle.len()..),
+                haystack,
                 needle,
+                haystack.len() - needle.len(),
+                haystack.len(),
                 indices,
             )
         }
@@ -484,9 +520,11 @@ impl Matcher {
         &mut self,
         haystack: Utf32Str<'_>,
         needle_: Utf32Str<'_>,
+        start: usize,
+        end: usize,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        if needle_.len() != haystack.len() || needle_.is_empty() {
+        if needle_.len() != end - start || needle_.is_empty() {
             return None;
         }
         assert!(
@@ -496,7 +534,7 @@ impl Matcher {
         let score = match (haystack, needle_) {
             (Utf32Str::Ascii(haystack), Utf32Str::Ascii(needle)) => {
                 let matched = if self.config.ignore_case {
-                    AsciiChar::cast(haystack)
+                    AsciiChar::cast(haystack)[start..end]
                         .iter()
                         .map(|c| c.normalize(&self.config))
                         .eq(AsciiChar::cast(needle)
@@ -511,8 +549,8 @@ impl Matcher {
                 self.calculate_score::<INDICES, _, _>(
                     AsciiChar::cast(haystack),
                     AsciiChar::cast(needle),
-                    0,
-                    haystack.len(),
+                    start,
+                    end,
                     indices,
                 )
             }
@@ -522,13 +560,12 @@ impl Matcher {
                 return None;
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Ascii(needle)) => {
-                let matched =
-                    haystack
+                let matched = haystack[start..end]
+                    .iter()
+                    .map(|c| c.normalize(&self.config))
+                    .eq(AsciiChar::cast(needle)
                         .iter()
-                        .map(|c| c.normalize(&self.config))
-                        .eq(AsciiChar::cast(needle)
-                            .iter()
-                            .map(|c| c.normalize(&self.config)));
+                        .map(|c| c.normalize(&self.config)));
                 if !matched {
                     return None;
                 }
@@ -536,20 +573,20 @@ impl Matcher {
                 self.calculate_score::<INDICES, _, _>(
                     haystack,
                     AsciiChar::cast(needle),
-                    0,
-                    haystack.len(),
+                    start,
+                    end,
                     indices,
                 )
             }
             (Utf32Str::Unicode(haystack), Utf32Str::Unicode(needle)) => {
-                let matched = haystack
+                let matched = haystack[start..end]
                     .iter()
                     .map(|c| c.normalize(&self.config))
                     .eq(needle.iter().map(|c| c.normalize(&self.config)));
                 if !matched {
                     return None;
                 }
-                self.calculate_score::<INDICES, _, _>(haystack, needle, 0, haystack.len(), indices)
+                self.calculate_score::<INDICES, _, _>(haystack, needle, start, end, indices)
             }
         };
         Some(score)

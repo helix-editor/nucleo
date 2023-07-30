@@ -11,9 +11,7 @@ pub struct MatcherConfig {
     /// Extra bonus for word boundary after slash, colon, semi-colon, and comma
     pub(crate) bonus_boundary_delimiter: u16,
     pub initial_char_class: CharClass,
-    /// Whether to normalize latin script characters to ASCII
-    /// this significantly degrades performance so its not recommended
-    /// to be turned on by default
+    /// Whether to normalize latin script characters to ASCII (enabled by default)
     pub normalize: bool,
     /// whether to ignore casing
     pub ignore_case: bool,
@@ -26,7 +24,7 @@ impl MatcherConfig {
             bonus_boundary_white: BONUS_BOUNDARY + 2,
             bonus_boundary_delimiter: BONUS_BOUNDARY + 1,
             initial_char_class: CharClass::Whitespace,
-            normalize: false,
+            normalize: true,
             ignore_case: true,
         }
     };

@@ -4,8 +4,7 @@ use std::process::Command;
 
 use brunch::{Bench, Benches};
 use fuzzy_matcher::FuzzyMatcher;
-use nucleo::Utf32String;
-use nucleo_matcher::Utf32Str;
+use nucleo::{Utf32Str, Utf32String};
 
 fn bench_dir() -> PathBuf {
     std::env::var_os("BENCHMARK_DIR")
@@ -44,9 +43,8 @@ fn main() {
             Some((path.as_str().into(), path))
         })
         .unzip();
-    let mut nucleo =
-        nucleo_matcher::Matcher::new(nucleo_matcher::MatcherConfig::DEFAULT.match_paths());
-    let skim = fuzzy_matcher::skim::SkimMatcherV2::default().ignore_case();
+    let mut nucleo = nucleo::Matcher::new(nucleo::MatcherConfig::DEFAULT.match_paths());
+    let skim = fuzzy_matcher::skim::SkimMatcherV2::default();
 
     // TODO: unicode?
     let needles = ["never_matches", "copying", "/doc/kernel", "//.h"];

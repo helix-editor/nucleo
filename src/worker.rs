@@ -8,7 +8,7 @@ use parking_lot::RawMutex;
 use rayon::{prelude::*, ThreadPool};
 
 use crate::items::{ItemCache, ItemsSnapshot};
-use crate::query::{self, Query};
+use crate::query::{self, MultiPattern};
 use crate::Match;
 
 struct Matchers(Box<[UnsafeCell<nucleo_matcher::Matcher>]>);
@@ -30,15 +30,24 @@ pub(crate) struct Worker {
     pub(crate) items: ItemsSnapshot,
     matchers: Matchers,
     pub(crate) matches: Vec<Match>,
-    pub(crate) query: Query,
+    pub(crate) pattern: MultiPattern,
     pub(crate) canceled: Arc<AtomicBool>,
+    pub(crate) should_notify: Arc<AtomicBool>,
 }
 
 impl Worker {
+    pub(crate) fn update_config(&mut self, config: MatcherConfig) {
+        for matcher in self.matchers.0.iter_mut() {
+            matcher.get_mut().config = config;
+        }
+    }
+
     pub(crate) fn new(
         notify: Arc<(dyn Fn() + Sync + Send)>,
         worker_threads: Option<usize>,
         config: MatcherConfig,
+        matches: Vec<Match>,
+        items: &ItemCache,
     ) -> (ThreadPool, Worker) {
         let worker_threads = worker_threads
             .unwrap_or_else(|| std::thread::available_parallelism().map_or(4, |it| it.get()));
@@ -53,15 +62,17 @@ impl Worker {
         let worker = Worker {
             notify,
             running: false,
-            items: ItemsSnapshot::new(),
+            items: ItemsSnapshot::new(items),
             matchers: Matchers(matchers),
-            matches: Vec::with_capacity(1024),
+            matches,
             // just a placeholder
-            query: Query::new(&config, crate::CaseMatching::Ignore, 0),
+            pattern: MultiPattern::new(&config, crate::CaseMatching::Ignore, 0),
             canceled: Arc::new(AtomicBool::new(false)),
+            should_notify: Arc::new(AtomicBool::new(false)),
         };
         (pool, worker)
     }
+
     pub(crate) unsafe fn run(
         &mut self,
         items_lock: ArcMutexGuard<RawMutex, ItemCache>,
@@ -77,48 +88,56 @@ impl Worker {
             self.matches.clear();
             last_scored_item = 0;
         }
-
         let matchers = &self.matchers;
-        let query = &self.query;
+        let pattern = &self.pattern;
         let items = unsafe { self.items.get() };
 
+        if self.pattern.cols.iter().all(|pat| pat.is_empty()) {
+            self.matches.clear();
+            self.matches.extend((0..items.len()).map(|i| Match {
+                score: 0,
+                idx: i as u32,
+            }));
+            if self.should_notify.load(atomic::Ordering::Relaxed) {
+                (self.notify)();
+            }
+            return;
+        }
         if query_status != query::Status::Unchanged && !self.matches.is_empty() {
             self.matches
                 .par_iter_mut()
-                .take_any_while(|_| self.canceled.load(atomic::Ordering::Relaxed))
+                .take_any_while(|_| !self.canceled.load(atomic::Ordering::Relaxed))
                 .for_each(|match_| {
                     let item = &items[match_.idx as usize];
-                    match_.score = query
+                    match_.score = pattern
                         .score(item.cols(), unsafe { matchers.get() })
                         .unwrap_or(u32::MAX);
                 });
             // TODO: do this in parallel?
-            self.matches.retain(|m| m.score != u32::MAX)
+            self.matches.retain(|m| m.score != u32::MAX);
         }
-
         if last_scored_item != self.items.len() {
-            self.running = true;
             let items = items[last_scored_item..]
                 .par_iter()
                 .enumerate()
                 .filter_map(|(i, item)| {
                     let score = if self.canceled.load(atomic::Ordering::Relaxed) {
-                        0
+                        u32::MAX - 1
                     } else {
-                        query.score(item.cols(), unsafe { matchers.get() })?
+                        pattern.score(item.cols(), unsafe { matchers.get() })?
                     };
                     Some(Match {
                         score,
                         idx: i as u32,
                     })
                 });
-            self.matches.par_extend(items)
+            self.matches.par_extend(items);
         }
 
         if !self.canceled.load(atomic::Ordering::Relaxed) {
             // TODO: cancel sort in progess?
             self.matches.par_sort_unstable_by(|match1, match2| {
-                match2.idx.cmp(&match1.idx).then_with(|| {
+                match2.score.cmp(&match1.score).then_with(|| {
                     // the tie breaker is comparitevly rarely needed so we keep it
                     // in a branch especially beacuse we need to acceess the items
                     // array here which invovles some pointer chasing
@@ -129,6 +148,8 @@ impl Worker {
             });
         }
 
-        (self.notify)();
+        if self.should_notify.load(atomic::Ordering::Relaxed) {
+            (self.notify)();
+        }
     }
 }

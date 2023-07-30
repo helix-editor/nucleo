@@ -54,7 +54,9 @@ impl PatternAtom {
 
             match case {
                 CaseMatching::Ignore => needle.make_ascii_lowercase(),
-                CaseMatching::Smart => ignore_case = needle.bytes().any(|b| b.is_ascii_uppercase()),
+                CaseMatching::Smart => {
+                    ignore_case = !needle.bytes().any(|b| b.is_ascii_uppercase())
+                }
                 CaseMatching::Respect => (),
             }
 
@@ -80,7 +82,7 @@ impl PatternAtom {
                     match case {
                         CaseMatching::Ignore => c = chars::to_lower_case(c),
                         CaseMatching::Smart => {
-                            ignore_case = ignore_case || c.is_uppercase();
+                            ignore_case = ignore_case && !c.is_uppercase();
                         }
                         CaseMatching::Respect => (),
                     }
@@ -149,22 +151,18 @@ pub enum Status {
 }
 
 #[derive(Debug, Clone)]
-pub struct Query {
+pub struct MultiPattern {
     pub cols: Vec<Pattern>,
 }
 
-impl Query {
-    pub fn new(matcher_config: &MatcherConfig, case_matching: CaseMatching, cols: usize) -> Query {
-        Query {
-            cols: vec![
-                Pattern {
-                    terms: Vec::new(),
-                    case_matching,
-                    normalize: matcher_config.normalize,
-                    status: Status::Unchanged,
-                };
-                cols
-            ],
+impl MultiPattern {
+    pub fn new(
+        matcher_config: &MatcherConfig,
+        case_matching: CaseMatching,
+        cols: usize,
+    ) -> MultiPattern {
+        MultiPattern {
+            cols: vec![Pattern::new(matcher_config, case_matching); cols],
         }
     }
 
@@ -201,7 +199,30 @@ pub struct Pattern {
 }
 
 impl Pattern {
-    pub(crate) fn score(&self, haystack: Utf32Str<'_>, matcher: &mut Matcher) -> Option<u32> {
+    pub fn new(matcher_config: &MatcherConfig, case_matching: CaseMatching) -> Pattern {
+        Pattern {
+            terms: Vec::new(),
+            case_matching,
+            normalize: matcher_config.normalize,
+            status: Status::Unchanged,
+        }
+    }
+    pub fn new_fuzzy_literal(
+        matcher_config: &MatcherConfig,
+        case_matching: CaseMatching,
+        pattern: &str,
+    ) -> Pattern {
+        let mut res = Pattern {
+            terms: Vec::new(),
+            case_matching,
+            normalize: matcher_config.normalize,
+            status: Status::Unchanged,
+        };
+        res.set_literal(pattern, PatternKind::Fuzzy, false);
+        res
+    }
+
+    pub fn score(&self, haystack: Utf32Str<'_>, matcher: &mut Matcher) -> Option<u32> {
         if self.terms.is_empty() {
             return Some(0);
         }
@@ -215,7 +236,7 @@ impl Pattern {
                     matcher.substring_match(haystack, pattern.needle.slice(..))
                 }
                 PatternKind::Prefix => matcher.prefix_match(haystack, pattern.needle.slice(..)),
-                PatternKind::Postfix => matcher.prefix_match(haystack, pattern.needle.slice(..)),
+                PatternKind::Postfix => matcher.postfix_match(haystack, pattern.needle.slice(..)),
             };
             if pattern.invert {
                 if pattern_score.is_some() {
@@ -249,7 +270,7 @@ impl Pattern {
                     }
                     PatternKind::Prefix => matcher.prefix_match(haystack, pattern.needle.slice(..)),
                     PatternKind::Postfix => {
-                        matcher.prefix_match(haystack, pattern.needle.slice(..))
+                        matcher.postfix_match(haystack, pattern.needle.slice(..))
                     }
                 };
                 if pattern_score.is_some() {
@@ -262,16 +283,16 @@ impl Pattern {
                     matcher.exact_indices(haystack, pattern.needle.slice(..), indices)
                 }
                 PatternKind::Fuzzy => {
-                    matcher.exact_indices(haystack, pattern.needle.slice(..), indices)
+                    matcher.fuzzy_indices(haystack, pattern.needle.slice(..), indices)
                 }
                 PatternKind::Substring => {
-                    matcher.exact_indices(haystack, pattern.needle.slice(..), indices)
+                    matcher.substring_indices(haystack, pattern.needle.slice(..), indices)
                 }
                 PatternKind::Prefix => {
-                    matcher.exact_indices(haystack, pattern.needle.slice(..), indices)
+                    matcher.prefix_indices(haystack, pattern.needle.slice(..), indices)
                 }
                 PatternKind::Postfix => {
-                    matcher.exact_indices(haystack, pattern.needle.slice(..), indices)
+                    matcher.postfix_indices(haystack, pattern.needle.slice(..), indices)
                 }
             };
             score += pattern_score? as u32
@@ -282,10 +303,15 @@ impl Pattern {
     pub fn parse_from(&mut self, pattern: &str, append: bool) {
         self.terms.clear();
         let invert = self.terms.last().map_or(false, |pat| pat.invert);
-        for atom in pattern_atoms(pattern) {
-            self.terms
-                .push(PatternAtom::parse(atom, self.normalize, self.case_matching));
-        }
+        let atoms = pattern_atoms(pattern).filter_map(|atom| {
+            let atom = PatternAtom::parse(atom, self.normalize, self.case_matching);
+            if atom.needle.is_empty() {
+                return None;
+            }
+            Some(atom)
+        });
+        self.terms.extend(atoms);
+
         self.status = if append && !invert && self.status != Status::Rescore {
             Status::Update
         } else {
@@ -303,6 +329,10 @@ impl Pattern {
         } else {
             Status::Rescore
         };
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.terms.is_empty()
     }
 }
 

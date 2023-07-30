@@ -15,7 +15,6 @@ dependencies = [
  "brunch",
  "fuzzy-matcher",
  "nucleo",
- "nucleo-matcher",
  "walkdir",
 ]
 

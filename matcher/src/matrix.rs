@@ -25,6 +25,8 @@ struct MatrixLayout<C: Char> {
 }
 impl<C: Char> MatrixLayout<C> {
     fn new(haystack_len: usize, needle_len: usize) -> MatrixLayout<C> {
+        assert!(haystack_len >= needle_len);
+        assert!(haystack_len <= u32::MAX as usize);
         let mut layout = Layout::from_size_align(0, 1).unwrap();
         let haystack_layout = Layout::array::<C>(haystack_len).unwrap();
         let bonus_layout = Layout::array::<u16>(haystack_len).unwrap();

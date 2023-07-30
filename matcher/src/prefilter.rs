@@ -85,6 +85,9 @@ impl Matcher {
                     .iter()
                     .rev()
                     .position(|c| c.normalize(&self.config) == needle_char)?;
+            if end - start < needle.len() {
+                return None;
+            }
 
             Some((start, end))
         }
