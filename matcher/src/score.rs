@@ -16,9 +16,15 @@ pub(crate) const PENALTY_GAP_EXTENSION: u16 = 1;
 pub(crate) const BONUS_BOUNDARY: u16 = SCORE_MATCH / 2;
 
 // Edge-triggered bonus for matches in camelCase words.
-// Compared to word-boundary case, they don't accompany single-character gaps
-// (e.g. FooBar vs. foo-bar), so we deduct bonus point accordingly.
-pub(crate) const BONUS_CAMEL123: u16 = BONUS_BOUNDARY - PENALTY_GAP_EXTENSION;
+// Their value should be BONUS_BOUNDARY - PENALTY_GAP_EXTENSION = 7.
+// However, this priporitzes camel case over non-camel case.
+// In fzf/skim this is not a problem since they score off the max
+// consecutive bounus. However, we don't do that (because its incorrect)
+// so to avoids prioritzing camel we use a lower bonus. I think that's fine
+// usually camel case is wekaer boundary than actual wourd boundaries anyway
+// This also has the nice sideeffect of perfectly balancing out
+// camel case, snake case and the consecutive version of the word
+pub(crate) const BONUS_CAMEL123: u16 = BONUS_CONSECUTIVE;
 
 // Minimum bonus point given to characters in consecutive chunks.
 // Note that bonus points for consecutive matches shouldn't have needed if we
