@@ -174,10 +174,10 @@ impl MultiPattern {
     pub fn new(
         matcher_config: &MatcherConfig,
         case_matching: CaseMatching,
-        cols: usize,
+        columns: usize,
     ) -> MultiPattern {
         MultiPattern {
-            cols: vec![Pattern::new(matcher_config, case_matching); cols],
+            cols: vec![Pattern::new(matcher_config, case_matching); columns],
         }
     }
 

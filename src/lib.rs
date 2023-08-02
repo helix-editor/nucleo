@@ -1,24 +1,71 @@
 use std::cmp::Reverse;
-use std::ops::Deref;
-use std::sync::atomic::{self, AtomicBool};
+use std::sync::atomic::{self, AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::items::{Item, ItemCache};
-use crate::worker::Worker;
-use parking_lot::lock_api::ArcMutexGuard;
+use parking_lot::Mutex;
 use rayon::ThreadPool;
 
 pub use crate::pattern::{CaseMatching, MultiPattern, Pattern, PatternKind};
 pub use crate::utf32_string::Utf32String;
+use crate::worker::Woker;
+pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str};
 
-mod items;
+mod boxcar;
 mod pattern;
 mod utf32_string;
 mod worker;
-pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str};
 
-use parking_lot::{Mutex, MutexGuard, RawMutex};
+pub struct Item<'a, T> {
+    pub data: &'a T,
+    pub matcher_columns: &'a [Utf32String],
+}
+
+pub struct Injector<T> {
+    items: Arc<boxcar::Vec<T>>,
+    notify: Arc<(dyn Fn() + Sync + Send)>,
+}
+
+impl<T> Clone for Injector<T> {
+    fn clone(&self) -> Self {
+        Injector {
+            items: self.items.clone(),
+            notify: self.notify.clone(),
+        }
+    }
+}
+
+impl<T> Injector<T> {
+    /// Appends an element to the back of the vector.
+    pub fn push(&self, value: T, fill_columns: impl FnOnce(&mut [Utf32String])) -> u32 {
+        let idx = self.items.push(value, fill_columns);
+        (self.notify)();
+        idx
+    }
+
+    /// Returns the total number of items in the current
+    /// queue
+    pub fn injected_items(&self) -> u32 {
+        self.items.count()
+    }
+
+    /// Returns a reference to the item at the given index.
+    ///
+    /// # Safety
+    ///
+    /// Item at `index` must be initialized. That means you must have observed
+    /// `push` returning this value or `get` retunring `Some` for this value.
+    /// Just because a later index is initialized doesn't mean that this index
+    /// is initialized
+    pub unsafe fn get_unchecked(&self, index: u32) -> Item<'_, T> {
+        self.items.get_unchecked(index)
+    }
+
+    /// Returns a reference to the element at the given index.
+    pub fn get(&self, index: u32) -> Option<Item<'_, T>> {
+        self.items.get(index)
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Match {
@@ -32,139 +79,134 @@ pub struct Status {
     pub running: bool,
 }
 
-#[derive(Clone)]
-pub struct Items<T> {
-    cache: Arc<Mutex<ItemCache>>,
-    items: Arc<Mutex<Vec<T>>>,
-    notify: Arc<(dyn Fn() + Sync + Send)>,
-}
-
-impl<T: Sync + Send> Items<T> {
-    pub fn clear(&mut self) {
-        self.items.lock().clear();
-        self.cache.lock().clear();
-    }
-
-    pub fn append(&mut self, items: impl Iterator<Item = (T, Box<[Utf32String]>)>) {
-        let mut cache = self.cache.lock();
-        let mut items_ = self.items.lock();
-        items_.extend(items.map(|(item, text)| {
-            cache.push(text);
-            item
-        }));
-        // notify that a new tick will be necessary
-        (self.notify)();
-    }
-
-    pub fn get(&self) -> impl Deref<Target = [T]> + '_ {
-        MutexGuard::map(self.items.lock(), |items| items.as_mut_slice())
-    }
-
-    pub fn get_matcher_items(&self) -> impl Deref<Target = [Item]> + '_ {
-        MutexGuard::map(self.cache.lock(), |items| items.get())
-    }
-}
-
-pub struct Nucleo<T: Sync + Send> {
+pub struct Nucleo<T: Sync + Send + 'static> {
     // the way the API is build we totally don't actually need these to be Arcs
     // but this lets us avoid some unsafe
-    worker: Arc<Mutex<Worker>>,
     canceled: Arc<AtomicBool>,
+    should_notify: Arc<AtomicBool>,
+    worker: Arc<Mutex<Woker<T>>>,
     pool: ThreadPool,
-    pub items: Items<T>,
+    cleared: bool,
+    item_count: u32,
     pub matches: Vec<Match>,
     pub pattern: MultiPattern,
-    should_notify: Arc<AtomicBool>,
+    pub notify: Arc<(dyn Fn() + Sync + Send)>,
+    items: Arc<boxcar::Vec<T>>,
 }
 
-impl<T: Sync + Send> Nucleo<T> {
+impl<T: Sync + Send + 'static> Nucleo<T> {
     pub fn new(
         config: MatcherConfig,
         notify: Arc<(dyn Fn() + Sync + Send)>,
         num_threads: Option<usize>,
         case_matching: CaseMatching,
-        cols: usize,
-        items: impl Iterator<Item = (T, Box<[Utf32String]>)>,
+        columns: u32,
     ) -> Self {
-        let mut cache = ItemCache::new();
-        let items: Vec<_> = items
-            .map(|(item, text)| {
-                cache.push(text);
-                item
-            })
-            .collect();
-        let matches: Vec<_> = (0..items.len())
-            .map(|i| Match {
-                score: 0,
-                idx: i as u32,
-            })
-            .collect();
-        let (pool, worker) =
-            Worker::new(notify.clone(), num_threads, config, matches.clone(), &cache);
+        let (pool, worker) = Woker::new(num_threads, config, notify.clone(), columns);
         Self {
             canceled: worker.canceled.clone(),
             should_notify: worker.should_notify.clone(),
-            items: Items {
-                cache: Arc::new(Mutex::new(cache)),
-                items: Arc::new(Mutex::new(items)),
-                notify,
-            },
+            items: worker.items.clone(),
             pool,
-            matches,
-            pattern: MultiPattern::new(&config, case_matching, cols),
+            matches: Vec::with_capacity(2 * 1024),
+            pattern: MultiPattern::new(&config, case_matching, columns as usize),
             worker: Arc::new(Mutex::new(worker)),
+            cleared: false,
+            item_count: 0,
+            notify,
         }
+    }
+
+    /// Returns the total number of items
+    pub fn item_count(&self) -> u32 {
+        self.item_count
+    }
+
+    pub fn injector(&self) -> Injector<T> {
+        Injector {
+            items: self.items.clone(),
+            notify: self.notify.clone(),
+        }
+    }
+
+    /// Returns a reference to the item at the given index.
+    ///
+    /// # Safety
+    ///
+    /// Item at `index` must be initialized. That means you must have observed
+    /// `push` returning this value or `get` retunring `Some` for this value.
+    /// Just because a later index is initialized doesn't mean that this index
+    /// is initialized
+    pub unsafe fn get_unchecked(&self, index: u32) -> Item<'_, T> {
+        self.items.get_unchecked(index)
+    }
+
+    /// Returns a reference to the element at the given index.
+    pub fn get(&self, index: u32) -> Option<Item<'_, T>> {
+        self.items.get(index)
+    }
+
+    /// Clears all items
+    pub fn clear(&mut self) {
+        self.canceled.store(true, Ordering::Relaxed);
+        self.items = Arc::new(boxcar::Vec::with_capacity(1024, self.items.columns()));
+        self.cleared = true
     }
 
     pub fn update_config(&mut self, config: MatcherConfig) {
         self.worker.lock().update_config(config)
     }
 
+    pub fn push(&self, value: T, fill_columns: impl FnOnce(&mut [Utf32String])) -> u32 {
+        let idx = self.items.push(value, fill_columns);
+        (self.notify)();
+        idx
+    }
+
     pub fn tick(&mut self, timeout: u64) -> Status {
         self.should_notify.store(false, atomic::Ordering::Relaxed);
         let status = self.pattern.status();
-        let items = self.items.cache.lock_arc();
-        let canceled = status != pattern::Status::Unchanged || items.cleared();
-        let res = self.tick_inner(timeout, canceled, items, status);
+        let canceled = status != pattern::Status::Unchanged || self.cleared;
+        let res = self.tick_inner(timeout, canceled, status);
+        self.cleared = false;
         if !canceled {
-            self.should_notify.store(true, atomic::Ordering::Relaxed);
             return res;
         }
-        let items = self.items.cache.lock_arc();
-        let res = self.tick_inner(timeout, false, items, pattern::Status::Unchanged);
-        self.should_notify.store(true, atomic::Ordering::Relaxed);
-        res
+        self.tick_inner(timeout, false, pattern::Status::Unchanged)
     }
 
-    fn tick_inner(
-        &mut self,
-        timeout: u64,
-        canceled: bool,
-        items: ArcMutexGuard<RawMutex, ItemCache>,
-        status: pattern::Status,
-    ) -> Status {
+    fn tick_inner(&mut self, timeout: u64, canceled: bool, status: pattern::Status) -> Status {
         let mut inner = if canceled {
             self.pattern.reset_status();
             self.canceled.store(true, atomic::Ordering::Relaxed);
             self.worker.lock_arc()
         } else {
             let Some(worker) = self.worker.try_lock_arc_for(Duration::from_millis(timeout)) else {
+                self.should_notify.store(true, Ordering::Release);
                 return Status{ changed: false, running: true };
             };
             worker
         };
 
         let changed = inner.running;
+
+        let running = canceled || self.items.count() > inner.item_count();
         if inner.running {
             inner.running = false;
-            self.matches.clone_from(&inner.matches);
+            if !inner.was_canceled {
+                self.item_count = inner.item_count();
+                self.matches.clone_from(&inner.matches);
+            }
         }
-
-        let running = canceled || inner.items.outdated(&items);
         if running {
             inner.pattern.clone_from(&self.pattern);
             self.canceled.store(false, atomic::Ordering::Relaxed);
-            self.pool.spawn(move || unsafe { inner.run(items, status) })
+            if !canceled {
+                self.should_notify.store(true, atomic::Ordering::Release);
+            }
+            let cleared = self.cleared;
+            self.pool
+                .spawn(move || unsafe { inner.run(status, cleared) })
         }
         Status { changed, running }
     }
@@ -181,6 +223,7 @@ impl<T: Sync + Send> Drop for Nucleo<T> {
         }
     }
 }
+
 /// convenicne function to easily fuzzy match
 /// on a (relatively small list of inputs). This is not recommended for building a full tui
 /// application that can match large numbers of matches as all matching is done on the current
