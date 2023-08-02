@@ -80,7 +80,7 @@ impl Matcher {
             let bonus = self.config.bonus_for(prev_char_class, char_class);
             let score = bonus * BONUS_FIRST_CHAR_MULTIPLIER + SCORE_MATCH;
             if score > max_score
-                && haystack[i + prefilter_len..]
+                && haystack[i + prefilter_len..(i + needle.len()).min(haystack.len())]
                     .iter()
                     .map(|&c| AsciiChar(c).normalize(&self.config).0)
                     .eq(needle_without_prefilter.iter().copied())

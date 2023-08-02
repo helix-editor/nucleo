@@ -12,6 +12,7 @@ use Algorithm::*;
 enum Algorithm {
     FuzzyOptimal,
     FuzzyGreedy,
+    Substring,
 }
 
 fn assert_matches(
@@ -46,12 +47,9 @@ fn assert_matches(
             println!("xx {matched_indices:?} {algo:?}");
             matched_indices.clear();
             let res = match algo {
-                Algorithm::FuzzyOptimal => {
-                    matcher.fuzzy_indices(haystack, needle, &mut matched_indices)
-                }
-                Algorithm::FuzzyGreedy => {
-                    matcher.fuzzy_indices_greedy(haystack, needle, &mut matched_indices)
-                }
+                FuzzyOptimal => matcher.fuzzy_indices(haystack, needle, &mut matched_indices),
+                FuzzyGreedy => matcher.fuzzy_indices_greedy(haystack, needle, &mut matched_indices),
+                Substring => matcher.substring_indices(haystack, needle, &mut matched_indices),
             };
             println!("{matched_indices:?}");
             let match_chars: Vec<_> = matched_indices
@@ -126,9 +124,15 @@ fn test_fuzzy() {
         &[
             (
                 "fooBarbaz1",
-                "oBZ",
-                &[2, 3, 8],
-                BONUS_CAMEL123 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION * 3,
+                "obr",
+                &[2, 3, 5],
+                BONUS_CONSECUTIVE - PENALTY_GAP_START,
+            ),
+            (
+                "fooBarbaz1",
+                "br",
+                &[3, 5],
+                BONUS_CAMEL123 * BONUS_FIRST_CHAR_MULTIPLIER - PENALTY_GAP_START,
             ),
             (
                 "foo bar baz",
@@ -242,6 +246,51 @@ fn test_fuzzy() {
 }
 
 #[test]
+fn test_substring() {
+    assert_matches(
+        &[Substring],
+        false,
+        false,
+        false,
+        &[
+            ("fooBarbaz1", "oba", &[2, 3, 4], 2 * BONUS_CONSECUTIVE),
+            (
+                "foo bar baz",
+                "foo",
+                &[0, 1, 2],
+                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + 2 * BONUS_CONSECUTIVE,
+            ),
+            (
+                "foo bar baz",
+                "FOO",
+                &[0, 1, 2],
+                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER + 2 * BONUS_CONSECUTIVE,
+            ),
+            (
+                "/AutomatorDocument.icns",
+                "rdoc",
+                &[9, 10, 11, 12],
+                BONUS_CAMEL123 + 2 * BONUS_CONSECUTIVE,
+            ),
+            (
+                "/man1/zshcompctl.1",
+                "zshc",
+                &[6, 7, 8, 9],
+                BONUS_BOUNDARY_DELIMITER * BONUS_FIRST_CHAR_MULTIPLIER + BONUS_CONSECUTIVE * 3,
+            ),
+            (
+                "/.oh-my-zsh/cache",
+                "zsh/c",
+                &[8, 9, 10, 11, 12],
+                BONUS_BOUNDARY * BONUS_FIRST_CHAR_MULTIPLIER
+                    + BONUS_CONSECUTIVE * 3
+                    + BONUS_BOUNDARY_DELIMITER,
+            ),
+        ],
+    );
+}
+
+#[test]
 fn test_fuzzy_case_sensitive() {
     assert_matches(
         &[FuzzyGreedy, FuzzyOptimal],
@@ -251,9 +300,9 @@ fn test_fuzzy_case_sensitive() {
         &[
             (
                 "fooBarbaz1",
-                "oBz",
-                &[2, 3, 8],
-                BONUS_CAMEL123 - PENALTY_GAP_START - PENALTY_GAP_EXTENSION * 3,
+                "oBr",
+                &[2, 3, 5],
+                BONUS_CAMEL123 - PENALTY_GAP_START,
             ),
             (
                 "Foo/Bar/Baz",
