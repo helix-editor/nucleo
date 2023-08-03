@@ -24,13 +24,17 @@ pub(crate) const BONUS_BOUNDARY: u16 = SCORE_MATCH / 2;
 // usually camel case is wekaer boundary than actual wourd boundaries anyway
 // This also has the nice sideeffect of perfectly balancing out
 // camel case, snake case and the consecutive version of the word
-pub(crate) const BONUS_CAMEL123: u16 = BONUS_CONSECUTIVE;
+pub(crate) const BONUS_CAMEL123: u16 = BONUS_BOUNDARY - PENALTY_GAP_START;
+
+/// Although bonus point for non-word characters is non-contextual, we need it
+/// for computing bonus points for consecutive chunks starting with a non-word
+/// character.
+pub(crate) const BONUS_NON_WORD: u16 = BONUS_BOUNDARY;
 
 // Minimum bonus point given to characters in consecutive chunks.
 // Note that bonus points for consecutive matches shouldn't have needed if we
 // used fixed match score as in the original algorithm.
-pub(crate) const BONUS_CONSECUTIVE: u16 =
-    PENALTY_GAP_START + PENALTY_GAP_EXTENSION + PENALTY_GAP_EXTENSION;
+pub(crate) const BONUS_CONSECUTIVE: u16 = PENALTY_GAP_START + PENALTY_GAP_EXTENSION;
 
 // The first character in the typed pattern usually has more significance
 // than the rest so it's important that it appears at special positions where
@@ -58,6 +62,8 @@ impl MatcherConfig {
             BONUS_CAMEL123
         } else if class == CharClass::Whitespace {
             self.bonus_boundary_white
+        } else if class == CharClass::NonWord {
+            return BONUS_NON_WORD;
         } else {
             0
         }
@@ -96,8 +102,8 @@ impl Matcher {
             indices.push(start as u32)
         }
         let class = haystack[start].char_class(&self.config);
-        let mut bonus = self.bonus_for(prev_class, class);
-        let mut score = SCORE_MATCH + bonus * BONUS_FIRST_CHAR_MULTIPLIER;
+        let mut first_bonus = self.bonus_for(prev_class, class);
+        let mut score = SCORE_MATCH + first_bonus * BONUS_FIRST_CHAR_MULTIPLIER;
         prev_class = class;
         needle_char = *needle_iter.next().unwrap_or(&needle_char);
 
@@ -107,9 +113,14 @@ impl Matcher {
                 if INDICES {
                     indices.push(i as u32 + start as u32 + 1)
                 }
-                bonus = self.bonus_for(prev_class, class);
+                let mut bonus = self.bonus_for(prev_class, class);
                 if consecutive != 0 {
-                    bonus = max(bonus, BONUS_CONSECUTIVE);
+                    if bonus >= BONUS_BOUNDARY && bonus > first_bonus {
+                        first_bonus = bonus
+                    }
+                    bonus = max(max(bonus, first_bonus), BONUS_CONSECUTIVE);
+                } else {
+                    first_bonus = bonus;
                 }
                 score += SCORE_MATCH + bonus;
                 in_gap = false;

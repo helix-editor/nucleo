@@ -29,7 +29,7 @@ impl<C: Char> MatrixLayout<C> {
         assert!(haystack_len <= u32::MAX as usize);
         let mut layout = Layout::from_size_align(0, 1).unwrap();
         let haystack_layout = Layout::array::<C>(haystack_len).unwrap();
-        let bonus_layout = Layout::array::<u16>(haystack_len).unwrap();
+        let bonus_layout = Layout::array::<u8>(haystack_len).unwrap();
         let rows_layout = Layout::array::<u16>(needle_len).unwrap();
         let score_layout = Layout::array::<ScoreCell>(haystack_len + 1 - needle_len).unwrap();
         let matrix_layout =
@@ -65,7 +65,7 @@ impl<C: Char> MatrixLayout<C> {
         ptr: NonNull<u8>,
     ) -> (
         *mut [C],
-        *mut [u16],
+        *mut [u8],
         *mut [u16],
         *mut [ScoreCell],
         *mut [MatrixCell],
@@ -73,7 +73,7 @@ impl<C: Char> MatrixLayout<C> {
         let base = ptr.as_ptr();
         let haystack = base.add(self.haystack_off) as *mut C;
         let haystack = slice_from_raw_parts_mut(haystack, self.haystack_len);
-        let bonus = base.add(self.bonus_off) as *mut u16;
+        let bonus = base.add(self.bonus_off) as *mut u8;
         let bonus = slice_from_raw_parts_mut(bonus, self.haystack_len);
         let rows = base.add(self.rows_off) as *mut u16;
         let rows = slice_from_raw_parts_mut(rows, self.needle_len);
@@ -88,9 +88,18 @@ impl<C: Char> MatrixLayout<C> {
     }
 }
 
-#[derive(Clone, Copy)]
+const _SIZE_CHECK: () = {
+    if size_of::<ScoreCell>() != 8 {
+        panic!()
+    }
+};
+
+// make this act like a u64
+#[repr(align(8))]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ScoreCell {
-    pub score: i32,
+    pub score: u16,
+    pub consecutive_bonus: u8,
     pub matched: bool,
 }
 
@@ -98,7 +107,7 @@ pub(crate) struct MatcherDataView<'a, C: Char> {
     pub haystack: &'a mut [C],
     // stored as a separate array instead of struct
     // to avoid padding sine char is too large and u8 too small :/
-    pub bonus: &'a mut [u16],
+    pub bonus: &'a mut [u8],
     pub current_row: &'a mut [ScoreCell],
     pub row_offs: &'a mut [u16],
     pub matrix_cells: &'a mut [MatrixCell],
@@ -121,7 +130,7 @@ impl MatrixCell {
 #[allow(unused)]
 struct MatcherData {
     haystack: [char; MAX_HAYSTACK_LEN],
-    bonus: [u16; MAX_HAYSTACK_LEN],
+    bonus: [u8; MAX_HAYSTACK_LEN],
     row_offs: [u16; MAX_NEEDLE_LEN],
     scratch_space: [ScoreCell; MAX_HAYSTACK_LEN],
     matrix: [u8; MAX_MATRIX_SIZE],
@@ -150,7 +159,11 @@ impl MatrixSlab {
         needle_len: usize,
     ) -> Option<MatcherDataView<'_, C>> {
         let cells = haystack_.len() * needle_len;
-        if cells > MAX_MATRIX_SIZE || haystack_.len() > u16::MAX as usize {
+        if cells > MAX_MATRIX_SIZE
+            || haystack_.len() > u16::MAX as usize
+            // ensures that socres never overflow
+            || needle_len > MAX_NEEDLE_LEN
+        {
             return None;
         }
         let matrix_layout = MatrixLayout::<C>::new(haystack_.len(), needle_len);

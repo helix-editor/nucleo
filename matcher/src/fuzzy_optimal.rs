@@ -3,8 +3,8 @@ use std::cmp::max;
 use crate::chars::{Char, CharClass};
 use crate::matrix::{MatcherDataView, MatrixCell, ScoreCell};
 use crate::score::{
-    BONUS_CONSECUTIVE, BONUS_FIRST_CHAR_MULTIPLIER, PENALTY_GAP_EXTENSION, PENALTY_GAP_START,
-    SCORE_MATCH,
+    BONUS_BOUNDARY, BONUS_CONSECUTIVE, BONUS_FIRST_CHAR_MULTIPLIER, PENALTY_GAP_EXTENSION,
+    PENALTY_GAP_START, SCORE_MATCH,
 };
 use crate::{Matcher, MatcherConfig};
 
@@ -57,38 +57,53 @@ impl Matcher {
         if INDICES {
             matrix.reconstruct_optimal_path(match_end as u16, indices, matrix_len, start as u32);
         }
-        Some(match_score_cell.score as u16)
+        Some(match_score_cell.score)
     }
 }
 
-fn next_m_score(p_score: i32, m_score: i32, bonus: u16) -> ScoreCell {
-    let consecutive_bonus = max(bonus, BONUS_CONSECUTIVE);
-    let score_match = m_score + consecutive_bonus as i32;
-    let score_skip = p_score + bonus as i32;
+const UNMATCHED: ScoreCell = ScoreCell {
+    score: 0,
+    // if matched is true then the consecutive bonus
+    // is always alteast BONUS_CONSECUTIVE so
+    // this constant can never occur naturally
+    consecutive_bonus: 0,
+    matched: true,
+};
+
+fn next_m_cell(p_score: u16, bonus: u16, m_cell: ScoreCell) -> ScoreCell {
+    if m_cell == UNMATCHED {
+        return ScoreCell {
+            score: p_score + bonus + SCORE_MATCH,
+            matched: false,
+            consecutive_bonus: bonus as u8,
+        };
+    }
+
+    let mut consecutive_bonus = max(m_cell.consecutive_bonus as u16, BONUS_CONSECUTIVE);
+    if bonus >= BONUS_BOUNDARY && bonus > consecutive_bonus {
+        consecutive_bonus = bonus
+    }
+
+    let score_match = m_cell.score + max(consecutive_bonus, bonus);
+    let score_skip = p_score + bonus;
     if score_match > score_skip {
         ScoreCell {
-            score: score_match + SCORE_MATCH as i32,
+            score: score_match + SCORE_MATCH,
             matched: true,
+            consecutive_bonus: consecutive_bonus as u8,
         }
     } else {
         ScoreCell {
-            score: score_skip + SCORE_MATCH as i32,
+            score: score_skip + SCORE_MATCH,
             matched: false,
+            consecutive_bonus: bonus as u8,
         }
     }
 }
 
-fn p_score(prev_p_score: i32, prev_m_score: i32) -> (i32, bool) {
-    let score_match = if prev_m_score >= 0 {
-        (prev_m_score - PENALTY_GAP_START as i32).max(0)
-    } else {
-        i32::MIN / 2
-    };
-    let score_skip = if prev_p_score >= 0 {
-        (prev_p_score - PENALTY_GAP_EXTENSION as i32).max(0)
-    } else {
-        i32::MIN / 2
-    };
+fn p_score(prev_p_score: u16, prev_m_score: u16) -> (u16, bool) {
+    let score_match = prev_m_score.saturating_sub(PENALTY_GAP_START);
+    let score_skip = prev_p_score.saturating_sub(PENALTY_GAP_EXTENSION);
     if score_match > score_skip {
         (score_match, true)
     } else {
@@ -122,7 +137,7 @@ impl<H: Char> MatcherDataView<'_, H> {
 
             let bonus = config.bonus_for(prev_class, class);
             // save bonus for later so we don't have to recompute it each time
-            *bonus_ = bonus;
+            *bonus_ = bonus as u8;
             prev_class = class;
 
             let i = i as u16;
@@ -160,7 +175,7 @@ impl<H: Char> MatcherDataView<'_, H> {
         current_row: &mut [ScoreCell],
         matrix_cells: &mut [MatrixCell],
         haystack: &[H],
-        bonus: &[u16],
+        bonus: &[u8],
         row_off: u16,
         mut next_row_off: u16,
         needle_idx: u16,
@@ -177,18 +192,19 @@ impl<H: Char> MatcherDataView<'_, H> {
             .zip(bonus[row_off as usize..next_row_off as usize].iter())
             .zip(current_row[relative_row_off as usize..next_relative_row_off as usize].iter_mut())
             .zip(matrix_cells.iter_mut());
-        let mut prev_p_score = i32::MIN / 2;
-        let mut prev_m_score = i32::MIN / 2;
+        let mut prev_p_score = 0;
+        let mut prev_m_score = 0;
         for (((&c, bonus), score_cell), matrix_cell) in skipped_col_iter {
             let (p_score, p_matched) = p_score(prev_p_score, prev_m_score);
             let m_cell = if FIRST_ROW {
                 if c == needle_char {
-                    next_m_score(0, i32::MIN / 2, bonus * BONUS_FIRST_CHAR_MULTIPLIER)
-                } else {
                     ScoreCell {
-                        score: i32::MIN / 2,
+                        score: *bonus as u16 * BONUS_FIRST_CHAR_MULTIPLIER + SCORE_MATCH,
                         matched: false,
+                        consecutive_bonus: *bonus,
                     }
+                } else {
+                    UNMATCHED
                 }
             } else {
                 *score_cell
@@ -208,23 +224,21 @@ impl<H: Char> MatcherDataView<'_, H> {
             let (p_score, p_matched) = p_score(prev_p_score, prev_m_score);
             let m_cell = if FIRST_ROW {
                 if c[0] == needle_char {
-                    next_m_score(0, i32::MIN / 2, bonus[0] * BONUS_FIRST_CHAR_MULTIPLIER)
-                } else {
                     ScoreCell {
-                        score: i32::MIN / 2,
+                        score: bonus[0] as u16 * BONUS_FIRST_CHAR_MULTIPLIER + SCORE_MATCH,
                         matched: false,
+                        consecutive_bonus: bonus[0],
                     }
+                } else {
+                    UNMATCHED
                 }
             } else {
                 *score_cell
             };
             *score_cell = if c[1] == next_needle_char {
-                next_m_score(p_score, m_cell.score, bonus[1])
+                next_m_cell(p_score, bonus[1] as u16, m_cell)
             } else {
-                ScoreCell {
-                    score: i32::MIN / 2,
-                    matched: false,
-                }
+                UNMATCHED
             };
             if INDICES {
                 matrix_cell.set(p_matched, m_cell.matched);
