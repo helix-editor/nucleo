@@ -90,6 +90,7 @@ pub struct Nucleo<T: Sync + Send + 'static> {
     item_count: u32,
     pub matches: Vec<Match>,
     pub pattern: MultiPattern,
+    pub last_matched_pattern: MultiPattern,
     pub notify: Arc<(dyn Fn() + Sync + Send)>,
     items: Arc<boxcar::Vec<T>>,
 }
@@ -110,6 +111,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
             pool,
             matches: Vec::with_capacity(2 * 1024),
             pattern: MultiPattern::new(&config, case_matching, columns as usize),
+            last_matched_pattern: MultiPattern::new(&config, case_matching, columns as usize),
             worker: Arc::new(Mutex::new(worker)),
             cleared: false,
             item_count: 0,
@@ -195,6 +197,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
             inner.running = false;
             if !inner.was_canceled {
                 self.item_count = inner.item_count();
+                self.last_matched_pattern.clone_from(&inner.pattern);
                 self.matches.clone_from(&inner.matches);
             }
         }

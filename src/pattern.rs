@@ -165,9 +165,21 @@ pub enum Status {
     Rescore,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct MultiPattern {
     pub cols: Vec<Pattern>,
+}
+
+impl Clone for MultiPattern {
+    fn clone(&self) -> Self {
+        Self {
+            cols: self.cols.clone(),
+        }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        self.cols.clone_from(&source.cols)
+    }
 }
 
 impl MultiPattern {
@@ -205,7 +217,7 @@ impl MultiPattern {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Pattern {
     terms: Vec<PatternAtom>,
     case_matching: CaseMatching,
@@ -348,6 +360,24 @@ impl Pattern {
 
     pub fn is_empty(&self) -> bool {
         self.terms.is_empty()
+    }
+}
+
+impl Clone for Pattern {
+    fn clone(&self) -> Self {
+        Self {
+            terms: self.terms.clone(),
+            case_matching: self.case_matching,
+            normalize: self.normalize,
+            status: self.status,
+        }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        self.terms.clone_from(&source.terms);
+        self.case_matching = source.case_matching;
+        self.normalize = source.normalize;
+        self.status = source.status;
     }
 }
 

@@ -64,7 +64,7 @@ impl Matcher {
 const UNMATCHED: ScoreCell = ScoreCell {
     score: 0,
     // if matched is true then the consecutive bonus
-    // is always alteast BONUS_CONSECUTIVE so
+    // is always atleast BONUS_CONSECUTIVE so
     // this constant can never occur naturally
     consecutive_bonus: 0,
     matched: true,
