@@ -7,6 +7,7 @@ use nucleo_matcher::MatcherConfig;
 use parking_lot::Mutex;
 use rayon::{prelude::*, ThreadPool};
 
+use crate::par_sort::par_quicksort;
 use crate::pattern::{self, MultiPattern};
 use crate::{boxcar, Match};
 
@@ -200,40 +201,50 @@ impl<T: Sync + Send + 'static> Woker<T> {
                 });
         }
 
-        if self.canceled.load(atomic::Ordering::Relaxed) {
+        let canceled = par_quicksort(
+            &mut self.matches,
+            |match1, match2| {
+                if match1.score > match2.score {
+                    return true;
+                }
+                if match1.idx == u32::MAX {
+                    return false;
+                }
+                if match2.idx == u32::MAX {
+                    return true;
+                }
+                // the tie breaker is comparitevly rarely needed so we keep it
+                // in a branch especially because we need to access the items
+                // array here which involves some pointer chasing
+                let item1 = self.items.get_unchecked(match1.idx);
+                let item2 = &self.items.get_unchecked(match2.idx);
+                let len1: u32 = item1
+                    .matcher_columns
+                    .iter()
+                    .map(|haystack| haystack.len() as u32)
+                    .sum();
+                let len2 = item2
+                    .matcher_columns
+                    .iter()
+                    .map(|haystack| haystack.len() as u32)
+                    .sum();
+                if len1 == len2 {
+                    match1.idx < match2.idx
+                } else {
+                    len1 < len2
+                }
+            },
+            &self.canceled,
+        );
+
+        if canceled {
             self.was_canceled = true;
         } else {
-            // TODO: cancel sort in progress?
-            self.matches.par_sort_unstable_by(|match1, match2| {
-                match2.score.cmp(&match1.score).then_with(|| {
-                    if match1.idx == u32::MAX || match2.idx == u32::MAX {
-                        return match1.idx.cmp(&match2.idx);
-                    }
-                    // the tie breaker is comparitevly rarely needed so we keep it
-                    // in a branch especially because we need to access the items
-                    // array here which involves some pointer chasing
-                    let item1 = self.items.get_unchecked(match1.idx);
-                    let item2 = &self.items.get_unchecked(match2.idx);
-                    let len1: u32 = item1
-                        .matcher_columns
-                        .iter()
-                        .map(|haystack| haystack.len() as u32)
-                        .sum();
-                    let len2 = item2
-                        .matcher_columns
-                        .iter()
-                        .map(|haystack| haystack.len() as u32)
-                        .sum();
-                    (len1, match1.idx).cmp(&(len2, match2.idx))
-                })
-            });
-            // let old = self.matches.clone();
             self.matches
                 .truncate(self.matches.len() - take(self.unmatched.get_mut()) as usize);
-        }
-
-        if self.should_notify.load(atomic::Ordering::Acquire) {
-            (self.notify)();
+            if self.should_notify.load(atomic::Ordering::Acquire) {
+                (self.notify)();
+            }
         }
     }
 }

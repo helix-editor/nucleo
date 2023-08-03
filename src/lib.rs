@@ -12,6 +12,7 @@ use crate::worker::Woker;
 pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str};
 
 mod boxcar;
+mod par_sort;
 mod pattern;
 mod utf32_string;
 mod worker;
