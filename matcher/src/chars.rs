@@ -16,7 +16,7 @@ pub(crate) trait Char: Copy + Eq + Ord + fmt::Display {
     fn normalize(self, config: &MatcherConfig) -> Self;
 }
 
-/// repr tansparent wrapper around u8 with better formatting and PartialEq<char> implementation
+/// repr tansparent wrapper around u8 with better formatting and `PartialEq<char>` implementation
 #[repr(transparent)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub(crate) struct AsciiChar(pub u8);
