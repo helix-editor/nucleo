@@ -36,7 +36,6 @@ pub(crate) struct Woker<T: Sync + Send + 'static> {
     notify: Arc<(dyn Fn() + Sync + Send)>,
     pub(crate) items: Arc<boxcar::Vec<T>>,
     in_flight: Vec<u32>,
-    unmatched: AtomicU32,
 }
 
 impl<T: Sync + Send + 'static> Woker<T> {
@@ -78,7 +77,6 @@ impl<T: Sync + Send + 'static> Woker<T> {
             notify,
             items: Arc::new(boxcar::Vec::with_capacity(2 * 1024, cols)),
             in_flight: Vec::with_capacity(64),
-            unmatched: AtomicU32::new(0),
         };
         (pool, worker)
     }
@@ -152,13 +150,11 @@ impl<T: Sync + Send + 'static> Woker<T> {
 
         if cleared {
             self.last_snapshot = 0;
-            *self.unmatched.get_mut() = 0;
             self.matches.clear();
         }
 
         // TODO: be smarter around reusing past results for rescoring
         if self.pattern.cols.iter().all(|pat| pat.is_empty()) {
-            *self.unmatched.get_mut() = 0;
             self.matches.clear();
             self.matches
                 .extend((0..self.last_snapshot).map(|idx| Match { score: 0, idx }));
@@ -179,6 +175,7 @@ impl<T: Sync + Send + 'static> Woker<T> {
             self.remove_in_flight_matches();
         }
 
+        let mut unmatched = AtomicU32::new(0);
         let matchers = &self.matchers;
         let pattern = &self.pattern;
         if pattern_status != pattern::Status::Unchanged && !self.matches.is_empty() {
@@ -187,6 +184,7 @@ impl<T: Sync + Send + 'static> Woker<T> {
                 .take_any_while(|_| !self.canceled.load(atomic::Ordering::Relaxed))
                 .for_each(|match_| {
                     if match_.idx == u32::MAX {
+                        unmatched.fetch_add(1, atomic::Ordering::Relaxed);
                         return;
                     }
                     // safety: in-flight items are never added to the matches
@@ -194,7 +192,7 @@ impl<T: Sync + Send + 'static> Woker<T> {
                     if let Some(score) = pattern.score(item.matcher_columns, matchers.get()) {
                         match_.score = score;
                     } else {
-                        self.unmatched.fetch_add(1, atomic::Ordering::Release);
+                        unmatched.fetch_add(1, atomic::Ordering::Relaxed);
                         match_.score = 0;
                         match_.idx = u32::MAX;
                     }
@@ -241,7 +239,7 @@ impl<T: Sync + Send + 'static> Woker<T> {
             self.was_canceled = true;
         } else {
             self.matches
-                .truncate(self.matches.len() - take(self.unmatched.get_mut()) as usize);
+                .truncate(self.matches.len() - take(unmatched.get_mut()) as usize);
             if self.should_notify.load(atomic::Ordering::Acquire) {
                 (self.notify)();
             }
