@@ -171,6 +171,7 @@ impl<H: Char> MatcherDataView<'_, H> {
         true
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn score_row<const FIRST_ROW: bool, const INDICES: bool, N: Char>(
         current_row: &mut [ScoreCell],
         matrix_cells: &mut [MatrixCell],

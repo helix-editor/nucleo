@@ -60,6 +60,7 @@ impl<C: Char> MatrixLayout<C> {
     /// # Safety
     ///
     /// `ptr` must point at an allocated with MARTIX_ALLOC_LAYOUT
+    #[allow(clippy::type_complexity)]
     unsafe fn fieds_from_ptr(
         &self,
         ptr: NonNull<u8>,
