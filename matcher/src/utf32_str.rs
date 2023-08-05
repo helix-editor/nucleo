@@ -5,7 +5,7 @@ use std::{fmt, slice};
 ///
 /// Usually rusts' utf8 encoded strings are great. However during fuzzy matching
 /// operates on codepoints (it should operate on graphemes but that's too much
-/// hassle to deal with). We want to quickly iterate these codeboints between
+/// hassle to deal with). We want to quickly iterate these codepoints between
 /// (up to 5 times) during matching.
 ///
 /// Doing codepoint segmentation on the fly not only blows trough the cache
@@ -14,7 +14,7 @@ use std::{fmt, slice};
 /// for ascii only text (but checking during each match has too much overhead).
 ///
 /// Ofcourse this comes at exta memory cost as we usually still need the ut8
-/// encoded variant for rendenring. In the (dominant) case of ascii-only text
+/// encoded variant for rendering. In the (dominant) case of ascii-only text
 /// we don't require a copy. Furthermore fuzzy matching usually is applied while
 /// the user is typing on the fly so the same item is potentially matched many
 /// times (making the the upfront cost more worth it). That means that its
@@ -24,8 +24,8 @@ use std::{fmt, slice};
 /// char buffer around that is filled with the presegmented chars
 ///
 /// Another advantage of this approach is that the matcher will naturally
-/// produce char indices (instead of utf8 offsets) annyway. With a
-/// codepoint basec representation like this the indices can be used
+/// produce char indices (instead of utf8 offsets) anyway. With a
+/// codepoint basic representation like this the indices can be used
 /// directly
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum Utf32Str<'a> {
@@ -84,7 +84,7 @@ impl<'a> Utf32Str<'a> {
         }
     }
 
-    /// Same as `slice` but accepts a u32 range for convenicene sine
+    /// Same as `slice` but accepts a u32 range for convenience since
     /// those are the indices returned by the matcher
     #[inline]
     pub fn slice_u32(&self, range: impl RangeBounds<u32>) -> Utf32Str {

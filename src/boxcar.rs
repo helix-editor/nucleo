@@ -43,9 +43,9 @@ pub(crate) struct Vec<T> {
     buckets: [Bucket<T>; BUCKETS as usize],
     /// the number of initialized elements in this vector
     count: AtomicU32,
-    /// the number of matcher columns in this vector, its absoletly critical that
+    /// the number of matcher columns in this vector, its absolutely critical that
     /// this remains constant and after initilaziaton (safety invariant) since
-    /// it is used to calculate the Entry layou
+    /// it is used to calculate the Entry layout
     columns: u32,
 }
 

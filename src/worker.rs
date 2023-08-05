@@ -14,7 +14,7 @@ use crate::{boxcar, Match};
 struct Matchers(Box<[UnsafeCell<nucleo_matcher::Matcher>]>);
 
 impl Matchers {
-    // thiss is not a true mut from ref, we use a cell here
+    // this is not a true mut from ref, we use a cell here
     #[allow(clippy::mut_from_ref)]
     unsafe fn get(&self) -> &mut nucleo_matcher::Matcher {
         &mut *self.0[rayon::current_thread_index().unwrap()].get()
@@ -24,7 +24,7 @@ impl Matchers {
 unsafe impl Sync for Matchers {}
 unsafe impl Send for Matchers {}
 
-pub(crate) struct Woker<T: Sync + Send + 'static> {
+pub(crate) struct Worker<T: Sync + Send + 'static> {
     pub(crate) running: bool,
     matchers: Matchers,
     pub(crate) matches: Vec<Match>,
@@ -38,7 +38,7 @@ pub(crate) struct Woker<T: Sync + Send + 'static> {
     in_flight: Vec<u32>,
 }
 
-impl<T: Sync + Send + 'static> Woker<T> {
+impl<T: Sync + Send + 'static> Worker<T> {
     pub(crate) fn item_count(&self) -> u32 {
         self.last_snapshot - self.in_flight.len() as u32
     }
@@ -64,7 +64,7 @@ impl<T: Sync + Send + 'static> Woker<T> {
         let matchers = (0..worker_threads)
             .map(|_| UnsafeCell::new(nucleo_matcher::Matcher::new(config)))
             .collect();
-        let worker = Woker {
+        let worker = Worker {
             running: false,
             matchers: Matchers(matchers),
             last_snapshot: 0,
@@ -211,7 +211,7 @@ impl<T: Sync + Send + 'static> Woker<T> {
                 if match2.idx == u32::MAX {
                     return true;
                 }
-                // the tie breaker is comparitevly rarely needed so we keep it
+                // the tie breaker is comparatively rarely needed so we keep it
                 // in a branch especially because we need to access the items
                 // array here which involves some pointer chasing
                 let item1 = self.items.get_unchecked(match1.idx);

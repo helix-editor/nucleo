@@ -36,7 +36,7 @@ use crate::matrix::MatrixSlab;
 /// A matcher engine that can execute (fuzzy) matches.
 ///
 /// A matches contains **heap allocated** scratch memory that is reused during
-/// matching. This scratch memory allows the matcher to garunte that it will
+/// matching. This scratch memory allows the matcher to guarantee that it will
 /// **never allocate** during matching (with the exception of pushing to the
 /// `indices` vector if there isn't enough capacity). However this scratch
 /// memory is fairly large (around 135KB) so creating a matcher is expensive and
@@ -58,7 +58,7 @@ pub struct Matcher {
     slab: MatrixSlab,
 }
 
-// this is just here for convenience not ruse if we should implement this
+// this is just here for convenience not sure if we should implement this
 impl Clone for Matcher {
     fn clone(&self) -> Self {
         Matcher {
@@ -93,7 +93,7 @@ impl Matcher {
         }
     }
 
-    /// Find the fuzzy match with the higehest score in the `haystack`.
+    /// Find the fuzzy match with the highest score in the `haystack`.
     ///
     /// This functions has `O(mn)` time complexity for short inputs. To
     /// avoid slowdowns it automatically falls back to [greedy matching]
@@ -241,7 +241,7 @@ impl Matcher {
 
     /// Greedly find a fuzzy match in the `haystack` and compute its indices.
     ///
-    /// This functions has `O(n)` time complexity but may provide unintutive (non-optimal)
+    /// This functions has `O(n)` time complexity but may provide unintuitive (non-optimal)
     /// indices and scores. Usually [fuzz_indices](crate::Matcher::fuzzy_indices) should
     /// be preferred.
     ///

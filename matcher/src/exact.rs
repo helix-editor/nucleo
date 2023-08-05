@@ -145,7 +145,7 @@ impl Matcher {
                     }
                 }
                 // in case we don't have any letter in the needle
-                // we can treat the search as case sensitive and use memmem dircedly which is way faster
+                // we can treat the search as case sensitive and use memmem directly which is way faster
                 None => (),
             }
         }
