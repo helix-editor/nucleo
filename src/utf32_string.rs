@@ -36,7 +36,7 @@ impl Utf32String {
         }
     }
 
-    /// Same as `slice` but accepts a u32 range for convenicene sine
+    /// Same as `slice` but accepts a u32 range for convenience since
     /// those are the indices returned by the matcher
     #[inline]
     pub fn slice(&self, range: impl RangeBounds<u32>) -> Utf32Str {

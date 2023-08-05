@@ -156,7 +156,7 @@ pub enum CharClass {
     Number,
 }
 
-/// nucleo can not match graphemes as single units to work around
+/// nucleo cannot match graphemes as single units to work around
 /// that we only use the first codepoint of each grapheme
 pub fn graphemes(text: &str) -> impl Iterator<Item = char> + '_ {
     text.graphemes(true).map(|grapheme| {

@@ -107,7 +107,7 @@ pub(crate) struct ScoreCell {
 pub(crate) struct MatcherDataView<'a, C: Char> {
     pub haystack: &'a mut [C],
     // stored as a separate array instead of struct
-    // to avoid padding sine char is too large and u8 too small :/
+    // to avoid padding since char is too large and u8 too small :/
     pub bonus: &'a mut [u8],
     pub current_row: &'a mut [ScoreCell],
     pub row_offs: &'a mut [u16],
@@ -162,7 +162,7 @@ impl MatrixSlab {
         let cells = haystack_.len() * needle_len;
         if cells > MAX_MATRIX_SIZE
             || haystack_.len() > u16::MAX as usize
-            // ensures that socres never overflow
+            // ensures that scores never overflow
             || needle_len > MAX_NEEDLE_LEN
         {
             return None;
@@ -175,7 +175,7 @@ impl MatrixSlab {
             // safely: this allocation is valid for MATRIX_ALLOC_LAYOUT
             let (haystack, bonus, rows, current_row, matrix_cells) =
                 matrix_layout.fieds_from_ptr(self.0);
-            // copy haystack before creating references to ensure we donu't crate
+            // copy haystack before creating references to ensure we don't create
             // references to invalid chars (which may or may not be UB)
             haystack_
                 .as_ptr()

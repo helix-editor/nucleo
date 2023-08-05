@@ -2,7 +2,7 @@
 //!
 //! This implementation is copied verbatim from `std::slice::sort_unstable` and then parallelized.
 //! The only difference from the original is that calls to `recurse` are executed in parallel using
-//! `rayon_core::join`a.
+//! `rayon_core::join`.
 //! Further modified for nucleo to allow canceling the sort
 
 // Copyright (c) 2010 The Rust Project Developers

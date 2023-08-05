@@ -8,7 +8,7 @@ use rayon::ThreadPool;
 
 pub use crate::pattern::{CaseMatching, MultiPattern, Pattern, PatternKind};
 pub use crate::utf32_string::Utf32String;
-use crate::worker::Woker;
+use crate::worker::Worker;
 pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str};
 
 mod boxcar;
@@ -85,7 +85,7 @@ pub struct Nucleo<T: Sync + Send + 'static> {
     // but this lets us avoid some unsafe
     canceled: Arc<AtomicBool>,
     should_notify: Arc<AtomicBool>,
-    worker: Arc<Mutex<Woker<T>>>,
+    worker: Arc<Mutex<Worker<T>>>,
     pool: ThreadPool,
     cleared: bool,
     item_count: u32,
@@ -104,7 +104,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         case_matching: CaseMatching,
         columns: u32,
     ) -> Self {
-        let (pool, worker) = Woker::new(num_threads, config, notify.clone(), columns);
+        let (pool, worker) = Worker::new(num_threads, config, notify.clone(), columns);
         Self {
             canceled: worker.canceled.clone(),
             should_notify: worker.should_notify.clone(),
@@ -137,7 +137,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
     /// # Safety
     ///
     /// Item at `index` must be initialized. That means you must have observed
-    /// `push` returning this value or `get` retunring `Some` for this value.
+    /// `push` returning this value or `get` returning `Some` for this value.
     /// Just because a later index is initialized doesn't mean that this index
     /// is initialized
     pub unsafe fn get_unchecked(&self, index: u32) -> Item<'_, T> {
@@ -219,7 +219,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
 impl<T: Sync + Send> Drop for Nucleo<T> {
     fn drop(&mut self) {
         // we ensure the worker quits before dropping items to ensure that
-        // the worker can always assume the items outlife it
+        // the worker can always assume the items outlive it
         self.canceled.store(true, atomic::Ordering::Relaxed);
         let lock = self.worker.try_lock_for(Duration::from_secs(1));
         if lock.is_none() {
@@ -228,8 +228,8 @@ impl<T: Sync + Send> Drop for Nucleo<T> {
     }
 }
 
-/// convenicne function to easily fuzzy match
-/// on a (relatively small list of inputs). This is not recommended for building a full tui
+/// convenience function to easily fuzzy match
+/// on a (relatively small) list of inputs. This is not recommended for building a full tui
 /// application that can match large numbers of matches as all matching is done on the current
 /// thread, effectively blocking the UI
 pub fn fuzzy_match<T: AsRef<str>>(

@@ -20,7 +20,7 @@ pub(crate) const BONUS_BOUNDARY: u16 = SCORE_MATCH / 2;
 // However, this priporitzes camel case over non-camel case.
 // In fzf/skim this is not a problem since they score off the max
 // consecutive bonus. However, we don't do that (because its incorrect)
-// so to avoids prioritzing camel we use a lower bonus. I think that's fine
+// so to avoids prioritizing camel we use a lower bonus. I think that's fine
 // usually camel case is wekaer boundary than actual wourd boundaries anyway
 // This also has the nice sideeffect of perfectly balancing out
 // camel case, snake case and the consecutive version of the word
@@ -97,7 +97,7 @@ impl Matcher {
         let mut in_gap = false;
         let mut consecutive = 1;
 
-        // unrolled the firs iteration to make applying the first char multiplier less akward
+        // unrolled the first iteration to make applying the first char multiplier less awkward
         if INDICES {
             indices.push(start as u32)
         }
