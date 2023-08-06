@@ -100,9 +100,9 @@ impl<T> Vec<T> {
             debug_assert!(!entries.is_null());
             let entry = Bucket::<T>::get(entries, location.entry, self.columns);
             // this looks odd but is necessary to ensure cross
-            // thread synchronizaton (essentailly acting as a memory barrier)
-            // since the caller must only gurantee that he has observed active on any thread
-            // but the current thread might still have an old value cached (altough unlikely)
+            // thread synchronization (essentially acting as a memory barrier)
+            // since the caller must only guarantee that he has observed active on any thread
+            // but the current thread might still have an old value cached (although unlikely)
             let _ = (*entry).active.load(Ordering::Acquire);
             Entry::read(entry, self.columns)
         }
