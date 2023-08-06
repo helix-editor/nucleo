@@ -80,7 +80,7 @@ impl Char for AsciiChar {
 fn char_class_non_ascii(c: char) -> CharClass {
     if c.is_lowercase() {
         CharClass::Lower
-    } else if c.is_uppercase() {
+    } else if is_upper_case(c) {
         CharClass::Upper
     } else if c.is_numeric() {
         CharClass::Number
@@ -142,6 +142,13 @@ pub fn to_lower_case(c: char) -> char {
     CASE_FOLDING_SIMPLE
         .binary_search_by_key(&c, |(upper, _)| *upper)
         .map_or(c, |idx| CASE_FOLDING_SIMPLE[idx].1)
+}
+
+#[inline(always)]
+pub fn is_upper_case(c: char) -> bool {
+    CASE_FOLDING_SIMPLE
+        .binary_search_by_key(&c, |(upper, _)| *upper)
+        .is_ok()
 }
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Copy, Clone, Hash)]

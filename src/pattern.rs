@@ -1,5 +1,8 @@
 use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str};
 
+#[cfg(test)]
+mod tests;
+
 use crate::Utf32String;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,7 +38,7 @@ impl PatternAtom {
         kind: PatternKind,
         escape_whitespace: bool,
     ) -> PatternAtom {
-        let mut ignore_case = case == CaseMatching::Ignore;
+        let mut ignore_case;
         let needle = if needle.is_ascii() {
             let mut needle = if escape_whitespace {
                 if let Some((start, rem)) = needle.split_once("\\ ") {
@@ -53,16 +56,20 @@ impl PatternAtom {
             };
 
             match case {
-                CaseMatching::Ignore => needle.make_ascii_lowercase(),
+                CaseMatching::Ignore => {
+                    ignore_case = true;
+                    needle.make_ascii_lowercase()
+                }
                 CaseMatching::Smart => {
                     ignore_case = !needle.bytes().any(|b| b.is_ascii_uppercase())
                 }
-                CaseMatching::Respect => (),
+                CaseMatching::Respect => ignore_case = false,
             }
 
             Utf32String::Ascii(needle.into_boxed_str())
         } else {
             let mut needle_ = Vec::with_capacity(needle.len());
+            ignore_case = matches!(case, CaseMatching::Ignore | CaseMatching::Smart);
             if escape_whitespace {
                 let mut saw_backslash = false;
                 for mut c in chars::graphemes(needle) {
@@ -82,7 +89,7 @@ impl PatternAtom {
                     match case {
                         CaseMatching::Ignore => c = chars::to_lower_case(c),
                         CaseMatching::Smart => {
-                            ignore_case = ignore_case && !c.is_uppercase();
+                            ignore_case = ignore_case && !chars::is_upper_case(c)
                         }
                         CaseMatching::Respect => (),
                     }
@@ -96,7 +103,7 @@ impl PatternAtom {
                     match case {
                         CaseMatching::Ignore => c = chars::to_lower_case(c),
                         CaseMatching::Smart => {
-                            ignore_case = ignore_case && !c.is_uppercase();
+                            ignore_case = ignore_case && !chars::is_upper_case(c);
                         }
                         CaseMatching::Respect => (),
                     }
@@ -116,10 +123,17 @@ impl PatternAtom {
 
     fn parse(raw: &str, normalize: bool, case: CaseMatching) -> PatternAtom {
         let mut atom = raw;
-        let invert = atom.starts_with('!');
-        if invert {
-            atom = &atom[1..];
-        }
+        let invert = match atom.as_bytes() {
+            [b'!', ..] => {
+                atom = &atom[1..];
+                true
+            }
+            [b'\\', b'!', ..] => {
+                atom = &atom[1..];
+                false
+            }
+            _ => false,
+        };
 
         let mut kind = match atom.as_bytes() {
             [b'^', ..] => {
@@ -137,8 +151,12 @@ impl PatternAtom {
             _ => PatternKind::Fuzzy,
         };
 
+        let mut append_dollar = false;
         match atom.as_bytes() {
-            [.., b'\\', b'$'] => (),
+            [.., b'\\', b'$'] => {
+                append_dollar = true;
+                atom = &atom[..atom.len() - 2]
+            }
             [.., b'$'] => {
                 kind = if kind == PatternKind::Fuzzy {
                     PatternKind::Postfix
@@ -156,6 +174,9 @@ impl PatternAtom {
 
         let mut pattern = PatternAtom::literal(atom, normalize, case, kind, true);
         pattern.invert = invert;
+        if append_dollar {
+            pattern.needle.push('$');
+        }
         pattern
     }
 }
@@ -221,7 +242,7 @@ impl MultiPattern {
 
 #[derive(Debug)]
 pub struct Pattern {
-    terms: Vec<PatternAtom>,
+    atoms: Vec<PatternAtom>,
     case_matching: CaseMatching,
     normalize: bool,
     status: Status,
@@ -230,7 +251,7 @@ pub struct Pattern {
 impl Pattern {
     pub fn new(matcher_config: &MatcherConfig, case_matching: CaseMatching) -> Pattern {
         Pattern {
-            terms: Vec::new(),
+            atoms: Vec::new(),
             case_matching,
             normalize: matcher_config.normalize,
             status: Status::Unchanged,
@@ -242,7 +263,7 @@ impl Pattern {
         pattern: &str,
     ) -> Pattern {
         let mut res = Pattern {
-            terms: Vec::new(),
+            atoms: Vec::new(),
             case_matching,
             normalize: matcher_config.normalize,
             status: Status::Unchanged,
@@ -252,11 +273,11 @@ impl Pattern {
     }
 
     pub fn score(&self, haystack: Utf32Str<'_>, matcher: &mut Matcher) -> Option<u32> {
-        if self.terms.is_empty() {
+        if self.atoms.is_empty() {
             return Some(0);
         }
         let mut score = 0;
-        for pattern in &self.terms {
+        for pattern in &self.atoms {
             matcher.config.ignore_case = pattern.ignore_case;
             let pattern_score = match pattern.kind {
                 PatternKind::Exact => matcher.exact_match(haystack, pattern.needle.slice(..)),
@@ -284,11 +305,11 @@ impl Pattern {
         matcher: &mut Matcher,
         indices: &mut Vec<u32>,
     ) -> Option<u32> {
-        if self.terms.is_empty() {
+        if self.atoms.is_empty() {
             return Some(0);
         }
         let mut score = 0;
-        for pattern in &self.terms {
+        for pattern in &self.atoms {
             matcher.config.ignore_case = pattern.ignore_case;
             if pattern.invert {
                 let pattern_score = match pattern.kind {
@@ -330,8 +351,8 @@ impl Pattern {
     }
 
     pub fn parse_from(&mut self, pattern: &str, append: bool) {
-        self.terms.clear();
-        let invert = self.terms.last().map_or(false, |pat| pat.invert);
+        self.atoms.clear();
+        let invert = self.atoms.last().map_or(false, |pat| pat.invert);
         let atoms = pattern_atoms(pattern).filter_map(|atom| {
             let atom = PatternAtom::parse(atom, self.normalize, self.case_matching);
             if atom.needle.is_empty() {
@@ -339,7 +360,7 @@ impl Pattern {
             }
             Some(atom)
         });
-        self.terms.extend(atoms);
+        self.atoms.extend(atoms);
 
         self.status = if append && !invert && self.status != Status::Rescore {
             Status::Update
@@ -349,10 +370,10 @@ impl Pattern {
     }
 
     pub fn set_literal(&mut self, pattern: &str, kind: PatternKind, append: bool) {
-        self.terms.clear();
+        self.atoms.clear();
         let pattern =
             PatternAtom::literal(pattern, self.normalize, self.case_matching, kind, false);
-        self.terms.push(pattern);
+        self.atoms.push(pattern);
         self.status = if append && self.status != Status::Rescore {
             Status::Update
         } else {
@@ -361,14 +382,14 @@ impl Pattern {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.terms.is_empty()
+        self.atoms.is_empty()
     }
 }
 
 impl Clone for Pattern {
     fn clone(&self) -> Self {
         Self {
-            terms: self.terms.clone(),
+            atoms: self.atoms.clone(),
             case_matching: self.case_matching,
             normalize: self.normalize,
             status: self.status,
@@ -376,7 +397,7 @@ impl Clone for Pattern {
     }
 
     fn clone_from(&mut self, source: &Self) {
-        self.terms.clone_from(&source.terms);
+        self.atoms.clone_from(&source.atoms);
         self.case_matching = source.case_matching;
         self.normalize = source.normalize;
         self.status = source.status;

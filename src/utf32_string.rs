@@ -186,10 +186,9 @@ impl fmt::Debug for Utf32String {
 
 impl fmt::Display for Utf32String {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "\"")?;
         for c in self.chars() {
             write!(f, "{c}")?
         }
-        write!(f, "\"")
+        Ok(())
     }
 }
