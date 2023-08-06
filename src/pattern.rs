@@ -116,8 +116,8 @@ impl PatternAtom {
 
     fn parse(raw: &str, normalize: bool, case: CaseMatching) -> PatternAtom {
         let mut atom = raw;
-        let inverse = atom.starts_with('!');
-        if inverse {
+        let invert = atom.starts_with('!');
+        if invert {
             atom = &atom[1..];
         }
 
@@ -150,11 +150,13 @@ impl PatternAtom {
             _ => (),
         }
 
-        if inverse && kind == PatternKind::Fuzzy {
+        if invert && kind == PatternKind::Fuzzy {
             kind = PatternKind::Substring
         }
 
-        PatternAtom::literal(atom, normalize, case, kind, true)
+        let mut pattern = PatternAtom::literal(atom, normalize, case, kind, true);
+        pattern.invert = invert;
+        pattern
     }
 }
 
