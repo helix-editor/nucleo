@@ -161,7 +161,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
             // there are usually only very few in flight items (one for each writer)
             self.remove_in_flight_matches();
             self.process_new_items_trivial();
-            if self.should_notify.load(atomic::Ordering::Acquire) {
+            if self.should_notify.load(atomic::Ordering::Relaxed) {
                 (self.notify)();
             }
             return;
@@ -184,6 +184,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
                 .take_any_while(|_| !self.canceled.load(atomic::Ordering::Relaxed))
                 .for_each(|match_| {
                     if match_.idx == u32::MAX {
+                        debug_assert_eq!(match_.score, 0);
                         unmatched.fetch_add(1, atomic::Ordering::Relaxed);
                         return;
                     }
@@ -240,7 +241,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
         } else {
             self.matches
                 .truncate(self.matches.len() - take(unmatched.get_mut()) as usize);
-            if self.should_notify.load(atomic::Ordering::Acquire) {
+            if self.should_notify.load(atomic::Ordering::Relaxed) {
                 (self.notify)();
             }
         }
