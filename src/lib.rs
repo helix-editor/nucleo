@@ -332,10 +332,10 @@ pub fn fuzzy_match<T: AsRef<str>>(
     case_matching: CaseMatching,
 ) -> Vec<(T, u32)> {
     let mut pattern_ = Pattern::new(&matcher.config, case_matching);
+    pattern_.set_literal(pattern, PatternKind::Fuzzy, false);
     if pattern_.is_empty() {
         return items.into_iter().map(|item| (item, 0)).collect();
     }
-    pattern_.set_literal(pattern, PatternKind::Fuzzy, false);
     let mut buf = Vec::new();
     let mut items: Vec<_> = items
         .into_iter()
