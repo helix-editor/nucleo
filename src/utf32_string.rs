@@ -46,8 +46,8 @@ impl Utf32String {
             Bound::Unbounded => 0,
         };
         let end = match range.end_bound() {
-            Bound::Included(&end) => end as usize,
-            Bound::Excluded(&end) => end as usize + 1,
+            Bound::Included(&end) => end as usize + 1,
+            Bound::Excluded(&end) => end as usize,
             Bound::Unbounded => self.len(),
         };
         match self {

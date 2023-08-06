@@ -13,6 +13,9 @@ enum Algorithm {
     FuzzyOptimal,
     FuzzyGreedy,
     Substring,
+    Prefix,
+    Postfix,
+    Exact,
 }
 
 fn assert_matches(
@@ -50,6 +53,9 @@ fn assert_matches(
                 FuzzyOptimal => matcher.fuzzy_indices(haystack, needle, &mut matched_indices),
                 FuzzyGreedy => matcher.fuzzy_indices_greedy(haystack, needle, &mut matched_indices),
                 Substring => matcher.substring_indices(haystack, needle, &mut matched_indices),
+                Prefix => matcher.prefix_indices(haystack, needle, &mut matched_indices),
+                Postfix => matcher.postfix_indices(haystack, needle, &mut matched_indices),
+                Exact => matcher.exact_indices(haystack, needle, &mut matched_indices),
             };
             println!("{matched_indices:?}");
             let match_chars: Vec<_> = matched_indices
@@ -107,7 +113,22 @@ pub fn assert_not_matches(
         assert_eq!(
             res, None,
             "{needle:?} should not match {haystack:?} (greedy)"
-        )
+        );
+        let res = matcher.substring_match(haystack, needle);
+        assert_eq!(
+            res, None,
+            "{needle:?} should not match {haystack:?} (substring)"
+        );
+        let res = matcher.prefix_match(haystack, needle);
+        assert_eq!(
+            res, None,
+            "{needle:?} should not match {haystack:?} (prefix)"
+        );
+        let res = matcher.postfix_match(haystack, needle);
+        assert_eq!(
+            res, None,
+            "{needle:?} should not match {haystack:?} (postfix)"
+        );
     }
 }
 
@@ -223,7 +244,96 @@ fn test_fuzzy() {
 }
 
 #[test]
+fn empty_needle() {
+    assert_matches(
+        &[Substring, Prefix, Postfix, FuzzyGreedy, FuzzyOptimal, Exact],
+        false,
+        false,
+        false,
+        &[("foo bar baz", "", &[], 0)],
+    );
+}
+
+#[test]
 fn test_substring() {
+    assert_matches(
+        &[Substring, Prefix],
+        false,
+        false,
+        false,
+        &[
+            (
+                "foo bar baz",
+                "foo",
+                &[0, 1, 2],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+            (
+                " foo bar baz",
+                "FOO",
+                &[1, 2, 3],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+            (
+                " foo bar baz",
+                " FOO",
+                &[0, 1, 2, 3],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 3),
+            ),
+        ],
+    );
+    assert_matches(
+        &[Substring, Postfix],
+        false,
+        false,
+        false,
+        &[
+            (
+                "foo bar baz",
+                "baz",
+                &[8, 9, 10],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+            (
+                "foo bar baz ",
+                "baz",
+                &[8, 9, 10],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+            (
+                "foo bar baz ",
+                "baz ",
+                &[8, 9, 10, 11],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 3),
+            ),
+        ],
+    );
+    assert_matches(
+        &[Substring, Prefix, Postfix, Exact, FuzzyGreedy, FuzzyOptimal],
+        false,
+        false,
+        false,
+        &[
+            (
+                "foo",
+                "foo",
+                &[0, 1, 2],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+            (
+                " foo",
+                "foo",
+                &[1, 2, 3],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+            (
+                " foo",
+                " foo",
+                &[0, 1, 2, 3],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 3),
+            ),
+        ],
+    );
     assert_matches(
         &[Substring],
         false,
@@ -235,18 +345,6 @@ fn test_substring() {
                 "oba",
                 &[2, 3, 4],
                 BONUS_CAMEL123 + BONUS_CONSECUTIVE,
-            ),
-            (
-                "foo bar baz",
-                "foo",
-                &[0, 1, 2],
-                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
-            ),
-            (
-                "foo bar baz",
-                "FOO",
-                &[0, 1, 2],
-                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
             ),
             (
                 "/AutomatorDocument.icns",

@@ -52,14 +52,14 @@ impl<'a> Utf32Str<'a> {
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    pub fn len(self) -> usize {
         match self {
             Utf32Str::Unicode(codepoints) => codepoints.len(),
             Utf32Str::Ascii(ascii_bytes) => ascii_bytes.len(),
         }
     }
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub fn is_empty(self) -> bool {
         match self {
             Utf32Str::Unicode(codepoints) => codepoints.is_empty(),
             Utf32Str::Ascii(ascii_bytes) => ascii_bytes.is_empty(),
@@ -67,35 +67,67 @@ impl<'a> Utf32Str<'a> {
     }
 
     #[inline]
-    pub fn slice(&self, range: impl RangeBounds<usize>) -> Utf32Str {
+    pub fn slice(self, range: impl RangeBounds<usize>) -> Utf32Str<'a> {
         let start = match range.start_bound() {
             Bound::Included(&start) => start,
             Bound::Excluded(&start) => start + 1,
             Bound::Unbounded => 0,
         };
         let end = match range.end_bound() {
-            Bound::Included(&end) => end,
-            Bound::Excluded(&end) => end + 1,
+            Bound::Included(&end) => end + 1,
+            Bound::Excluded(&end) => end,
             Bound::Unbounded => self.len(),
         };
         match self {
             Utf32Str::Ascii(bytes) => Utf32Str::Ascii(&bytes[start..end]),
             Utf32Str::Unicode(codepoints) => Utf32Str::Unicode(&codepoints[start..end]),
+        }
+    }
+
+    /// Returns the number of leading whitespaces in this string
+    #[inline]
+    pub fn leading_white_space(self) -> usize {
+        match self {
+            Utf32Str::Ascii(bytes) => bytes
+                .iter()
+                .position(|b| !b.is_ascii_whitespace())
+                .unwrap_or(0),
+            Utf32Str::Unicode(codepoints) => codepoints
+                .iter()
+                .position(|c| !c.is_whitespace())
+                .unwrap_or(0),
+        }
+    }
+
+    /// Returns the number of leading whitespaces in this string
+    #[inline]
+    pub fn trailing_white_space(self) -> usize {
+        match self {
+            Utf32Str::Ascii(bytes) => bytes
+                .iter()
+                .rev()
+                .position(|b| !b.is_ascii_whitespace())
+                .unwrap_or(0),
+            Utf32Str::Unicode(codepoints) => codepoints
+                .iter()
+                .rev()
+                .position(|c| !c.is_whitespace())
+                .unwrap_or(0),
         }
     }
 
     /// Same as `slice` but accepts a u32 range for convenience since
     /// those are the indices returned by the matcher
     #[inline]
-    pub fn slice_u32(&self, range: impl RangeBounds<u32>) -> Utf32Str {
+    pub fn slice_u32(self, range: impl RangeBounds<u32>) -> Utf32Str<'a> {
         let start = match range.start_bound() {
             Bound::Included(&start) => start as usize,
             Bound::Excluded(&start) => start as usize + 1,
             Bound::Unbounded => 0,
         };
         let end = match range.end_bound() {
-            Bound::Included(&end) => end as usize,
-            Bound::Excluded(&end) => end as usize + 1,
+            Bound::Included(&end) => end as usize + 1,
+            Bound::Excluded(&end) => end as usize,
             Bound::Unbounded => self.len(),
         };
         match self {
@@ -103,23 +135,30 @@ impl<'a> Utf32Str<'a> {
             Utf32Str::Unicode(codepoints) => Utf32Str::Unicode(&codepoints[start..end]),
         }
     }
-    pub fn is_ascii(&self) -> bool {
+    pub fn is_ascii(self) -> bool {
         matches!(self, Utf32Str::Ascii(_))
     }
 
-    pub fn get(&self, idx: u32) -> char {
+    pub fn get(self, idx: u32) -> char {
         match self {
             Utf32Str::Ascii(bytes) => bytes[idx as usize] as char,
             Utf32Str::Unicode(codepoints) => codepoints[idx as usize],
         }
     }
-    pub fn last(&self) -> char {
+    pub fn last(self) -> char {
         match self {
             Utf32Str::Ascii(bytes) => bytes[bytes.len() - 1] as char,
             Utf32Str::Unicode(codepoints) => codepoints[codepoints.len() - 1],
         }
     }
-    pub fn chars(&self) -> Chars<'_> {
+    pub fn first(self) -> char {
+        match self {
+            Utf32Str::Ascii(bytes) => bytes[0] as char,
+            Utf32Str::Unicode(codepoints) => codepoints[0],
+        }
+    }
+
+    pub fn chars(self) -> Chars<'a> {
         match self {
             Utf32Str::Ascii(bytes) => Chars::Ascii(bytes.iter()),
             Utf32Str::Unicode(codepoints) => Chars::Unicode(codepoints.iter()),
@@ -158,6 +197,15 @@ impl<'a> Iterator for Chars<'a> {
         match self {
             Chars::Ascii(iter) => iter.next().map(|&c| c as char),
             Chars::Unicode(iter) => iter.next().copied(),
+        }
+    }
+}
+
+impl DoubleEndedIterator for Chars<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match self {
+            Chars::Ascii(iter) => iter.next_back().map(|&c| c as char),
+            Chars::Unicode(iter) => iter.next_back().copied(),
         }
     }
 }

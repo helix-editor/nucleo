@@ -129,8 +129,11 @@ impl Matcher {
         needle_: Utf32Str<'_>,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        if needle_.len() > haystack_.len() || needle_.is_empty() {
+        if needle_.len() > haystack_.len() {
             return None;
+        }
+        if needle_.is_empty() {
+            return Some(0);
         }
         if needle_.len() == haystack_.len() {
             return self.exact_match_impl::<INDICES>(
@@ -262,8 +265,11 @@ impl Matcher {
         needle_: Utf32Str<'_>,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        if needle_.len() > haystack.len() || needle_.is_empty() {
+        if needle_.len() > haystack.len() {
             return None;
+        }
+        if needle_.is_empty() {
+            return Some(0);
         }
         if needle_.len() == haystack.len() {
             return self.exact_match_impl::<INDICES>(haystack, needle_, 0, haystack.len(), indices);
@@ -358,8 +364,11 @@ impl Matcher {
         needle_: Utf32Str<'_>,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        if needle_.len() > haystack.len() || needle_.is_empty() {
+        if needle_.len() > haystack.len() {
             return None;
+        }
+        if needle_.is_empty() {
+            return Some(0);
         }
         if needle_.len() == haystack.len() {
             return self.exact_match_impl::<INDICES>(haystack, needle_, 0, haystack.len(), indices);
@@ -425,7 +434,28 @@ impl Matcher {
     ///
     /// See the [matcher documentation](crate::Matcher) for more details.
     pub fn exact_match(&mut self, haystack: Utf32Str<'_>, needle: Utf32Str<'_>) -> Option<u16> {
-        self.exact_match_impl::<false>(haystack, needle, 0, haystack.len(), &mut Vec::new())
+        if needle.is_empty() {
+            return Some(0);
+        }
+        let mut leading_space = 0;
+        let mut trailing_space = 0;
+        if !needle.first().is_whitespace() {
+            leading_space = haystack.leading_white_space()
+        }
+        if !needle.last().is_whitespace() {
+            trailing_space = haystack.trailing_white_space()
+        }
+        // avoid wraparound in size check
+        if trailing_space == haystack.len() {
+            return None;
+        }
+        self.exact_match_impl::<false>(
+            haystack,
+            needle,
+            leading_space,
+            haystack.len() - trailing_space,
+            &mut Vec::new(),
+        )
     }
 
     /// Checks whether needle and haystack match exactly and compute the matches indices.
@@ -439,7 +469,28 @@ impl Matcher {
         needle: Utf32Str<'_>,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        self.exact_match_impl::<true>(haystack, needle, 0, haystack.len(), indices)
+        if needle.is_empty() {
+            return Some(0);
+        }
+        let mut leading_space = 0;
+        let mut trailing_space = 0;
+        if !needle.first().is_whitespace() {
+            leading_space = haystack.leading_white_space()
+        }
+        if !needle.last().is_whitespace() {
+            trailing_space = haystack.trailing_white_space()
+        }
+        // avoid wraparound in size check
+        if trailing_space == haystack.len() {
+            return None;
+        }
+        self.exact_match_impl::<true>(
+            haystack,
+            needle,
+            leading_space,
+            haystack.len() - trailing_space,
+            indices,
+        )
     }
 
     /// Checks whether needle is a prefix of the haystack.
@@ -448,10 +499,23 @@ impl Matcher {
     ///
     /// See the [matcher documentation](crate::Matcher) for more details.
     pub fn prefix_match(&mut self, haystack: Utf32Str<'_>, needle: Utf32Str<'_>) -> Option<u16> {
-        if haystack.len() < needle.len() {
+        if needle.is_empty() {
+            return Some(0);
+        }
+        let mut leading_space = 0;
+        if !needle.first().is_whitespace() {
+            leading_space = haystack.leading_white_space()
+        }
+        if haystack.len() - leading_space < needle.len() {
             None
         } else {
-            self.exact_match_impl::<false>(haystack, needle, 0, needle.len(), &mut Vec::new())
+            self.exact_match_impl::<false>(
+                haystack,
+                needle,
+                leading_space,
+                needle.len() + leading_space,
+                &mut Vec::new(),
+            )
         }
     }
 
@@ -466,10 +530,23 @@ impl Matcher {
         needle: Utf32Str<'_>,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        if haystack.len() < needle.len() {
+        if needle.is_empty() {
+            return Some(0);
+        }
+        let mut leading_space = 0;
+        if !needle.first().is_whitespace() {
+            leading_space = haystack.leading_white_space()
+        }
+        if haystack.len() - leading_space < needle.len() {
             None
         } else {
-            self.exact_match_impl::<true>(haystack, needle, 0, needle.len(), indices)
+            self.exact_match_impl::<true>(
+                haystack,
+                needle,
+                leading_space,
+                needle.len() + leading_space,
+                indices,
+            )
         }
     }
 
@@ -479,14 +556,21 @@ impl Matcher {
     ///
     /// See the [matcher documentation](crate::Matcher) for more details.
     pub fn postfix_match(&mut self, haystack: Utf32Str<'_>, needle: Utf32Str<'_>) -> Option<u16> {
-        if haystack.len() < needle.len() {
+        if needle.is_empty() {
+            return Some(0);
+        }
+        let mut trailing_spaces = 0;
+        if !needle.last().is_whitespace() {
+            trailing_spaces = haystack.trailing_white_space()
+        }
+        if haystack.len() - trailing_spaces < needle.len() {
             None
         } else {
             self.exact_match_impl::<false>(
                 haystack,
                 needle,
-                haystack.len() - needle.len(),
-                haystack.len(),
+                haystack.len() - needle.len() - trailing_spaces,
+                haystack.len() - trailing_spaces,
                 &mut Vec::new(),
             )
         }
@@ -503,14 +587,21 @@ impl Matcher {
         needle: Utf32Str<'_>,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        if haystack.len() < needle.len() {
+        if needle.is_empty() {
+            return Some(0);
+        }
+        let mut trailing_spaces = 0;
+        if !needle.last().is_whitespace() {
+            trailing_spaces = haystack.trailing_white_space()
+        }
+        if haystack.len() - trailing_spaces < needle.len() {
             None
         } else {
             self.exact_match_impl::<true>(
                 haystack,
                 needle,
-                haystack.len() - needle.len(),
-                haystack.len(),
+                haystack.len() - needle.len() - trailing_spaces,
+                haystack.len() - trailing_spaces,
                 indices,
             )
         }
@@ -524,7 +615,7 @@ impl Matcher {
         end: usize,
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
-        if needle_.len() != end - start || needle_.is_empty() {
+        if needle_.len() != end - start {
             return None;
         }
         assert!(
