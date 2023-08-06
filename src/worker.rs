@@ -202,8 +202,8 @@ impl<T: Sync + Send + 'static> Worker<T> {
         let canceled = par_quicksort(
             &mut self.matches,
             |match1, match2| {
-                if match1.score > match2.score {
-                    return true;
+                if match1.score != match2.score {
+                    return match1.score > match2.score;
                 }
                 if match1.idx == u32::MAX {
                     return false;
