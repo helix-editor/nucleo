@@ -81,7 +81,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
         (pool, worker)
     }
 
-    unsafe fn process_new_items(&mut self) {
+    unsafe fn process_new_items(&mut self, unmatched: &AtomicU32) {
         let matchers = &self.matchers;
         let pattern = &self.pattern;
         self.matches.reserve(self.in_flight.len());
@@ -99,17 +99,20 @@ impl<T: Sync + Send + 'static> Worker<T> {
         if new_snapshot.end() != self.last_snapshot {
             let end = new_snapshot.end();
             let in_flight = Mutex::new(&mut self.in_flight);
-            let items = new_snapshot.filter_map(|(idx, item)| {
+            let items = new_snapshot.map(|(idx, item)| {
                 let Some(item) = item else {
                     in_flight.lock().push(idx);
-                    return None;
+                    unmatched.fetch_add(1, atomic::Ordering::Relaxed);
+                    return Match { score: 0, idx: u32::MAX };
                 };
-                let score = if self.canceled.load(atomic::Ordering::Relaxed) {
-                    0
-                } else {
-                    pattern.score(item.matcher_columns, matchers.get())?
+                if self.canceled.load(atomic::Ordering::Relaxed) {
+                    return Match { score: 0, idx };
+                }
+                let Some(score) = pattern.score(item.matcher_columns, matchers.get()) else {
+                    unmatched.fetch_add(1, atomic::Ordering::Relaxed);
+                    return Match { score: 0, idx: u32::MAX };
                 };
-                Some(Match { score, idx })
+                Match { score, idx }
             });
             self.matches.par_extend(items);
             self.last_snapshot = end;
@@ -167,7 +170,8 @@ impl<T: Sync + Send + 'static> Worker<T> {
             return;
         }
 
-        self.process_new_items();
+        let mut unmatched = AtomicU32::new(0);
+        self.process_new_items(&unmatched);
         if pattern_status == pattern::Status::Rescore {
             self.matches.clear();
             self.matches
@@ -175,7 +179,6 @@ impl<T: Sync + Send + 'static> Worker<T> {
             self.remove_in_flight_matches();
         }
 
-        let mut unmatched = AtomicU32::new(0);
         let matchers = &self.matchers;
         let pattern = &self.pattern;
         if pattern_status != pattern::Status::Unchanged && !self.matches.is_empty() {
