@@ -1,4 +1,4 @@
-use crate::pattern::PatternAtom;
+use crate::pattern::{PatternAtom, Status};
 use crate::{CaseMatching, Pattern, PatternKind};
 
 fn parse_atom(pat: &str) -> PatternAtom {
@@ -6,14 +6,14 @@ fn parse_atom(pat: &str) -> PatternAtom {
 }
 
 fn parse_atom_with(pat: &str, case_matching: CaseMatching) -> PatternAtom {
-    let mut pat = parse_with(pat, case_matching);
+    let mut pat = parse_with(pat, case_matching, false);
     assert_eq!(pat.atoms.len(), 1);
     pat.atoms.remove(0)
 }
 
-fn parse_with(pat: &str, case_matching: CaseMatching) -> Pattern {
+fn parse_with(pat: &str, case_matching: CaseMatching, append: bool) -> Pattern {
     let mut res = Pattern::new(&nucleo_matcher::MatcherConfig::DEFAULT, case_matching);
-    res.parse_from(pat, false);
+    res.parse_from(pat, append);
     res
 }
 
@@ -132,4 +132,14 @@ fn escape() {
     let pat = parse_atom("!\\^foo\\$");
     assert_eq!(pat.needle.to_string(), "^foo$");
     assert_eq!(pat.kind, PatternKind::Substring);
+}
+
+#[test]
+fn append() {
+    let mut pat = parse_with("!", CaseMatching::Smart, true);
+    assert_eq!(pat.status, Status::Update);
+    pat.parse_from("!f", true);
+    assert_eq!(pat.status, Status::Update);
+    pat.parse_from("!fo", true);
+    assert_eq!(pat.status, Status::Rescore);
 }

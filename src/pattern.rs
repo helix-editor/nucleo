@@ -351,8 +351,8 @@ impl Pattern {
     }
 
     pub fn parse_from(&mut self, pattern: &str, append: bool) {
-        self.atoms.clear();
         let invert = self.atoms.last().map_or(false, |pat| pat.invert);
+        self.atoms.clear();
         let atoms = pattern_atoms(pattern).filter_map(|atom| {
             let atom = PatternAtom::parse(atom, self.normalize, self.case_matching);
             if atom.needle.is_empty() {
