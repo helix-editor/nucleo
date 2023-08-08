@@ -89,10 +89,9 @@ impl<T: Sync + Send + 'static> Worker<T> {
             let Some(item) = self.items.get(idx) else {
                 return true;
             };
-            let Some(score) = pattern.score(item.matcher_columns, matchers.get()) else {
-                return false;
+            if let Some(score) = pattern.score(item.matcher_columns, matchers.get()) {
+                self.matches.push(Match { score, idx });
             };
-            self.matches.push(Match { score, idx });
             false
         });
         let new_snapshot = self.items.par_snapshot(self.last_snapshot);
@@ -170,8 +169,6 @@ impl<T: Sync + Send + 'static> Worker<T> {
             return;
         }
 
-        let mut unmatched = AtomicU32::new(0);
-        self.process_new_items(&unmatched);
         if pattern_status == pattern::Status::Rescore {
             self.matches.clear();
             self.matches
@@ -179,9 +176,11 @@ impl<T: Sync + Send + 'static> Worker<T> {
             self.remove_in_flight_matches();
         }
 
-        let matchers = &self.matchers;
-        let pattern = &self.pattern;
+        let mut unmatched = AtomicU32::new(0);
         if pattern_status != pattern::Status::Unchanged && !self.matches.is_empty() {
+            self.process_new_items_trivial();
+            let matchers = &self.matchers;
+            let pattern = &self.pattern;
             self.matches
                 .par_iter_mut()
                 .take_any_while(|_| !self.canceled.load(atomic::Ordering::Relaxed))
@@ -201,6 +200,8 @@ impl<T: Sync + Send + 'static> Worker<T> {
                         match_.idx = u32::MAX;
                     }
                 });
+        } else {
+            self.process_new_items(&unmatched);
         }
 
         let canceled = par_quicksort(
