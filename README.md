@@ -1,8 +1,14 @@
 # Nucleo
 
+> Disclaimer: An 0.1 version has been published to crates.io.
+> This allows us to merge the `nulceo` integration into helix.
+> However, the public API is not yet final and will likely
+> change quite a bit in the next release. The documentation
+> is also not yet complete
+
 `nucleo` is a highly performant fuzzy matcher written in rust. It aims to fill the same use case as `fzf` and `skim`. Compared to `fzf` `nucleo` has a significantly faster matching algorithm. This mainly makes a difference when matching patterns with low selectivity on many items. An (unscientific) comparison is shown in the benchmark section below.
 
-Nucleo uses the exact **same scoring system as fzf**. That means you should get the same ranking quality (or better) as you are used to from fzf. However, `nucleo` has a more faithful implementation of the Smith-Waterman algorithm which is normally used in DNA sequence alignment (see https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/gaps.pdf) with two separate matrices (instead of one like fzf). This means that `nucleo` finds the optimal match more often. For example if you match `foo` in `xf foo` `nucleo` will match `x__foo` but `fzf` will match `xf_oo` (you can increase the word length the result will stay the same). The former is the more intuitive match and has a higher score according to the ranking system that both `nucleo` and fzf.
+`nucleo` uses the exact **same scoring system as fzf**. That means you should get the same ranking quality (or better) as you are used to from fzf. However, `nucleo` has a more faithful implementation of the Smith-Waterman algorithm which is normally used in DNA sequence alignment (see https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/gaps.pdf) with two separate matrices (instead of one like fzf). This means that `nucleo` finds the optimal match more often. For example if you match `foo` in `xf foo` `nucleo` will match `x__foo` but `fzf` will match `xf_oo` (you can increase the word length the result will stay the same). The former is the more intuitive match and has a higher score according to the ranking system that both `nucleo` and fzf.
 
 **Compared to `skim`** (and the `fuzzy-matcher` crate) `nucleo` has an even larger performance advantage and is often around **six times faster** (see benchmarks below). Furthermore, the bonus system used by nucleo and fzf is (in my opinion) more consistent/superior. `nulceo` also handles non-ascii text much better. (`skim`s bonus system and even case insensitivity only work for ASCII).
 
