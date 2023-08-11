@@ -157,11 +157,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
 
         // TODO: be smarter around reusing past results for rescoring
         if self.pattern.cols.iter().all(|pat| pat.is_empty()) {
-            self.matches.clear();
-            self.matches
-                .extend((0..self.last_snapshot).map(|idx| Match { score: 0, idx }));
-            // there are usually only very few in flight items (one for each writer)
-            self.remove_in_flight_matches();
+            self.reset_matches();
             self.process_new_items_trivial();
             if self.should_notify.load(atomic::Ordering::Relaxed) {
                 (self.notify)();
@@ -170,10 +166,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
         }
 
         if pattern_status == pattern::Status::Rescore {
-            self.matches.clear();
-            self.matches
-                .extend((0..self.last_snapshot).map(|idx| Match { score: 0, idx }));
-            self.remove_in_flight_matches();
+            self.reset_matches();
         }
 
         let mut unmatched = AtomicU32::new(0);
@@ -249,5 +242,13 @@ impl<T: Sync + Send + 'static> Worker<T> {
                 (self.notify)();
             }
         }
+    }
+
+    fn reset_matches(&mut self) {
+        self.matches.clear();
+        self.matches
+            .extend((0..self.last_snapshot).map(|idx| Match { score: 0, idx }));
+        // there are usually only very few in flight items (one for each writer)
+        self.remove_in_flight_matches();
     }
 }
