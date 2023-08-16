@@ -1,7 +1,7 @@
 # Nucleo
 
 > Disclaimer: An 0.1 version has been published to crates.io.
-> This allows us to merge the `nulceo` integration into helix.
+> This allows us to merge the `nucleo` integration into helix.
 > However, the public API is not yet final and will likely
 > change quite a bit in the next release. The documentation
 > is also not yet complete
@@ -10,7 +10,7 @@
 
 `nucleo` uses the exact **same scoring system as fzf**. That means you should get the same ranking quality (or better) as you are used to from fzf. However, `nucleo` has a more faithful implementation of the Smith-Waterman algorithm which is normally used in DNA sequence alignment (see https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/gaps.pdf) with two separate matrices (instead of one like fzf). This means that `nucleo` finds the optimal match more often. For example if you match `foo` in `xf foo` `nucleo` will match `x__foo` but `fzf` will match `xf_oo` (you can increase the word length the result will stay the same). The former is the more intuitive match and has a higher score according to the ranking system that both `nucleo` and fzf.
 
-**Compared to `skim`** (and the `fuzzy-matcher` crate) `nucleo` has an even larger performance advantage and is often around **six times faster** (see benchmarks below). Furthermore, the bonus system used by nucleo and fzf is (in my opinion) more consistent/superior. `nulceo` also handles non-ascii text much better. (`skim`s bonus system and even case insensitivity only work for ASCII).
+**Compared to `skim`** (and the `fuzzy-matcher` crate) `nucleo` has an even larger performance advantage and is often around **six times faster** (see benchmarks below). Furthermore, the bonus system used by nucleo and fzf is (in my opinion) more consistent/superior. `nucleo` also handles non-ascii text much better. (`skim`s bonus system and even case insensitivity only work for ASCII).
 
 Nucleo also handles Unicode graphemes more correctly. `Fzf` and `skim` both operate on Unicode code points (chars). That means that multi codepoint graphemes can have weird effects (match multiple times, weirdly change the score, ...). `nucleo` will always use the first codepoint of the grapheme for matching instead (and reports grapheme indices, so they can be highlighted correctly). 
 
@@ -70,7 +70,7 @@ The name also indicates its close relationship with the *helix* editor (sticking
 <!-- Furthermore, `nucleo` also features fully lock-free multithreaded streaming so if used as a library its possible to performantly scale streaming to a practically unlimited number of producer threads (for example running `ignore` or `jwalk` across all cores) without any buffering or other additional logic. -->
 
 
-The fuzzy matching algorithm is based on the `Smith-Waterman` (with affine gaps) as described in https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/gaps.pdf (TODO: explain). `Nulceo` faithfully implements this algorithm and therefore has two separate matrices. However, by precomputing the next `m-matrix` row we can avoid storing the p-matrix at all and instead just store the value in a variable as we iterate the row.
+The fuzzy matching algorithm is based on the `Smith-Waterman` (with affine gaps) as described in https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/gaps.pdf (TODO: explain). `Nucleo` faithfully implements this algorithm and therefore has two separate matrices. However, by precomputing the next `m-matrix` row we can avoid storing the p-matrix at all and instead just store the value in a variable as we iterate the row.
 
 Nucleo also never really stores the `m-matrix` instead we only ever store the current row (which simultaneously serves as the next row). During index calculation a full matrix is however required to backtrack which indices were actually matched. We only store two bools here (to indicate where we came from in the matrix).
 
