@@ -373,7 +373,9 @@ impl Pattern {
         self.atoms.clear();
         let pattern =
             PatternAtom::literal(pattern, self.normalize, self.case_matching, kind, false);
-        self.atoms.push(pattern);
+        if !pattern.needle.is_empty() {
+            self.atoms.push(pattern);
+        }
         self.status = if append && self.status != Status::Rescore {
             Status::Update
         } else {
