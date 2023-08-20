@@ -345,6 +345,6 @@ pub fn fuzzy_match<T: AsRef<str>>(
                 .map(|score| (item, score))
         })
         .collect();
-    items.sort_by_key(|(item, score)| (Reverse(*score), item.as_ref().len()));
+    items.sort_by_key(|(_, score)| Reverse(*score));
     items
 }
