@@ -1,4 +1,3 @@
-use std::cmp::Reverse;
 use std::ops::{Bound, RangeBounds};
 use std::sync::atomic::{self, AtomicBool, Ordering};
 use std::sync::Arc;
@@ -7,13 +6,13 @@ use std::time::Duration;
 use parking_lot::Mutex;
 use rayon::ThreadPool;
 
-pub use crate::pattern::{CaseMatching, MultiPattern, Pattern, PatternKind};
+use crate::pattern::MultiPattern;
 use crate::worker::Worker;
-pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str, Utf32String};
+pub use nucleo_matcher::{chars, Config, Matcher, Utf32Str, Utf32String};
 
 mod boxcar;
 mod par_sort;
-mod pattern;
+pub mod pattern;
 mod worker;
 
 pub struct Item<'a, T> {
@@ -195,10 +194,9 @@ pub struct Nucleo<T: Sync + Send + 'static> {
 
 impl<T: Sync + Send + 'static> Nucleo<T> {
     pub fn new(
-        config: MatcherConfig,
+        config: Config,
         notify: Arc<(dyn Fn() + Sync + Send)>,
         num_threads: Option<usize>,
-        case_matching: CaseMatching,
         columns: u32,
     ) -> Self {
         let (pool, worker) = Worker::new(num_threads, config, notify.clone(), columns);
@@ -207,10 +205,10 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
             should_notify: worker.should_notify.clone(),
             items: worker.items.clone(),
             pool,
-            pattern: MultiPattern::new(&config, case_matching, columns as usize),
+            pattern: MultiPattern::new(columns as usize),
             snapshot: Snapshot {
                 matches: Vec::with_capacity(2 * 1024),
-                pattern: MultiPattern::new(&config, case_matching, columns as usize),
+                pattern: MultiPattern::new(columns as usize),
                 item_count: 0,
                 items: worker.items.clone(),
             },
@@ -252,7 +250,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         }
     }
 
-    pub fn update_config(&mut self, config: MatcherConfig) {
+    pub fn update_config(&mut self, config: Config) {
         self.worker.lock().update_config(config)
     }
 
@@ -320,32 +318,4 @@ impl<T: Sync + Send> Drop for Nucleo<T> {
             unreachable!("thread pool failed to shutdown properly")
         }
     }
-}
-
-/// convenience function to easily fuzzy match
-/// on a (relatively small) list of inputs. This is not recommended for building a full tui
-/// application that can match large numbers of matches as all matching is done on the current
-/// thread, effectively blocking the UI
-pub fn fuzzy_match<T: AsRef<str>>(
-    matcher: &mut Matcher,
-    pattern: &str,
-    items: impl IntoIterator<Item = T>,
-    case_matching: CaseMatching,
-) -> Vec<(T, u32)> {
-    let mut pattern_ = Pattern::new(&matcher.config, case_matching);
-    pattern_.set_literal(pattern, PatternKind::Fuzzy, false);
-    if pattern_.is_empty() {
-        return items.into_iter().map(|item| (item, 0)).collect();
-    }
-    let mut buf = Vec::new();
-    let mut items: Vec<_> = items
-        .into_iter()
-        .filter_map(|item| {
-            pattern_
-                .score(Utf32Str::new(item.as_ref(), &mut buf), matcher)
-                .map(|score| (item, score))
-        })
-        .collect();
-    items.sort_by_key(|(_, score)| Reverse(*score));
-    items
 }

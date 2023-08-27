@@ -4,7 +4,7 @@ use crate::score::{
     MAX_PREFIX_BONUS, PENALTY_GAP_EXTENSION, PENALTY_GAP_START, SCORE_MATCH,
 };
 use crate::utf32_str::Utf32Str;
-use crate::{Matcher, MatcherConfig};
+use crate::{Config, Matcher};
 
 use Algorithm::*;
 
@@ -26,11 +26,11 @@ fn assert_matches(
     prefer_prefix: bool,
     cases: &[(&str, &str, &[u32], u16)],
 ) {
-    let mut config = MatcherConfig {
+    let mut config = Config {
         normalize,
         ignore_case: !case_sensitive,
         prefer_prefix,
-        ..MatcherConfig::DEFAULT
+        ..Config::DEFAULT
     };
     if path {
         config.set_match_paths();
@@ -89,10 +89,10 @@ pub fn assert_not_matches(
     path: bool,
     cases: &[(&str, &str)],
 ) {
-    let mut config = MatcherConfig {
+    let mut config = Config {
         normalize,
         ignore_case: !case_sensitive,
-        ..MatcherConfig::DEFAULT
+        ..Config::DEFAULT
     };
     if path {
         config.set_match_paths();
@@ -134,8 +134,8 @@ pub fn assert_not_matches(
     }
 }
 
-const BONUS_BOUNDARY_WHITE: u16 = MatcherConfig::DEFAULT.bonus_boundary_white;
-const BONUS_BOUNDARY_DELIMITER: u16 = MatcherConfig::DEFAULT.bonus_boundary_delimiter;
+const BONUS_BOUNDARY_WHITE: u16 = Config::DEFAULT.bonus_boundary_white;
+const BONUS_BOUNDARY_DELIMITER: u16 = Config::DEFAULT.bonus_boundary_delimiter;
 
 #[test]
 fn test_fuzzy() {

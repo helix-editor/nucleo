@@ -1,16 +1,19 @@
 use crate::chars::CharClass;
 use crate::score::BONUS_BOUNDARY;
 
+/// Configuration data that controls how a matcher behaves
 #[non_exhaustive]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct MatcherConfig {
-    pub delimiter_chars: &'static [u8],
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Config {
+    /// Characters that act as delimiters and provide bonus
+    /// for matching the following char
+    pub(crate) delimiter_chars: &'static [u8],
     /// Extra bonus for word boundary after whitespace character or beginning of the string
     pub(crate) bonus_boundary_white: u16,
-
     /// Extra bonus for word boundary after slash, colon, semi-colon, and comma
     pub(crate) bonus_boundary_delimiter: u16,
-    pub initial_char_class: CharClass,
+    pub(crate) initial_char_class: CharClass,
+
     /// Whether to normalize latin script characters to ASCII (enabled by default)
     pub normalize: bool,
     /// whether to ignore casing
@@ -25,9 +28,11 @@ pub struct MatcherConfig {
     pub prefer_prefix: bool,
 }
 
-impl MatcherConfig {
+impl Config {
+    /// The default config for nucleo, implemented as a constant since
+    /// Default::default can not be called in a const context
     pub const DEFAULT: Self = {
-        MatcherConfig {
+        Config {
             delimiter_chars: b"/,:;|",
             bonus_boundary_white: BONUS_BOUNDARY + 2,
             bonus_boundary_delimiter: BONUS_BOUNDARY + 1,
@@ -39,9 +44,9 @@ impl MatcherConfig {
     };
 }
 
-impl MatcherConfig {
+impl Config {
+    /// Configures the matcher with bonuses appropriate for matching file paths.
     pub fn set_match_paths(&mut self) {
-        // compared to fzf we include
         if cfg!(windows) {
             self.delimiter_chars = b"/:\\";
         } else {
@@ -51,6 +56,7 @@ impl MatcherConfig {
         self.initial_char_class = CharClass::Delimiter;
     }
 
+    /// Configures the matcher with bonuses appropriate for matching file paths.
     pub const fn match_paths(mut self) -> Self {
         if cfg!(windows) {
             self.delimiter_chars = b"/\\";

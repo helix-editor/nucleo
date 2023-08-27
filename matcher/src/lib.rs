@@ -10,6 +10,7 @@ a slightly less convenient API. Be sure to carefully read the documentation of t
 
 // sadly ranges don't optmimzie well
 #![allow(clippy::manual_range_contains)]
+#![warn(missing_docs)]
 
 pub mod chars;
 mod config;
@@ -19,6 +20,7 @@ mod exact;
 mod fuzzy_greedy;
 mod fuzzy_optimal;
 mod matrix;
+pub mod pattern;
 mod prefilter;
 mod score;
 mod utf32_str;
@@ -26,7 +28,7 @@ mod utf32_str;
 #[cfg(test)]
 mod tests;
 
-pub use crate::config::MatcherConfig;
+pub use crate::config::Config;
 pub use crate::utf32_str::{Utf32Str, Utf32String};
 
 use crate::chars::{AsciiChar, Char};
@@ -80,7 +82,8 @@ use crate::matrix::MatrixSlab;
 /// that the matcher *will panic*. The caller must decide whether it wants to
 /// filter out long haystacks or truncate them.
 pub struct Matcher {
-    pub config: MatcherConfig,
+    #[allow(missing_docs)]
+    pub config: Config,
     slab: MatrixSlab,
 }
 
@@ -88,7 +91,7 @@ pub struct Matcher {
 impl Clone for Matcher {
     fn clone(&self) -> Self {
         Matcher {
-            config: self.config,
+            config: self.config.clone(),
             slab: MatrixSlab::new(),
         }
     }
@@ -105,14 +108,17 @@ impl std::fmt::Debug for Matcher {
 impl Default for Matcher {
     fn default() -> Self {
         Matcher {
-            config: MatcherConfig::DEFAULT,
+            config: Config::DEFAULT,
             slab: MatrixSlab::new(),
         }
     }
 }
 
 impl Matcher {
-    pub fn new(config: MatcherConfig) -> Self {
+    /// Creates a new matcher instance, note that this will eagerly allocate
+    /// a fairly large chunk of heap memory (135KB currently but subject to
+    /// change) so matchers should be reused if used in a loop.
+    pub fn new(config: Config) -> Self {
         Self {
             config,
             slab: MatrixSlab::new(),

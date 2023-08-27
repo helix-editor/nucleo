@@ -43,7 +43,7 @@ fn main() {
             Some((path.as_str().into(), path))
         })
         .unzip();
-    let mut nucleo = nucleo::Matcher::new(nucleo::MatcherConfig::DEFAULT.match_paths());
+    let mut nucleo = nucleo::Matcher::new(nucleo::Config::DEFAULT.match_paths());
     let skim = fuzzy_matcher::skim::SkimMatcherV2::default();
 
     // TODO: unicode?

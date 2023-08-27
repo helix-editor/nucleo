@@ -1,7 +1,7 @@
 use std::cmp::max;
 
 use crate::chars::{Char, CharClass};
-use crate::{Matcher, MatcherConfig};
+use crate::{Config, Matcher};
 
 pub(crate) const SCORE_MATCH: u16 = 16;
 pub(crate) const PENALTY_GAP_START: u16 = 3;
@@ -47,7 +47,7 @@ pub(crate) const BONUS_CONSECUTIVE: u16 = PENALTY_GAP_START + PENALTY_GAP_EXTENS
 // still respected.
 pub(crate) const BONUS_FIRST_CHAR_MULTIPLIER: u16 = 2;
 
-impl MatcherConfig {
+impl Config {
     #[inline]
     pub(crate) fn bonus_for(&self, prev_class: CharClass, class: CharClass) -> u16 {
         if class > CharClass::Delimiter {

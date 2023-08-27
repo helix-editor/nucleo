@@ -6,7 +6,7 @@ use crate::score::{
     BONUS_BOUNDARY, BONUS_CONSECUTIVE, BONUS_FIRST_CHAR_MULTIPLIER, MAX_PREFIX_BONUS,
     PENALTY_GAP_EXTENSION, PENALTY_GAP_START, PREFIX_BONUS_SCALE, SCORE_MATCH,
 };
-use crate::{Matcher, MatcherConfig};
+use crate::{Config, Matcher};
 
 impl Matcher {
     pub(crate) fn fuzzy_match_optimal<const INDICES: bool, H: Char + PartialEq<N>, N: Char>(
@@ -112,7 +112,7 @@ impl<H: Char> MatcherDataView<'_, H> {
         &mut self,
         needle: &[N],
         mut prev_class: CharClass,
-        config: &MatcherConfig,
+        config: &Config,
         start: u32,
     ) -> bool
     where
