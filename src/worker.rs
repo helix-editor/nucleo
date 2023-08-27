@@ -102,14 +102,20 @@ impl<T: Sync + Send + 'static> Worker<T> {
                 let Some(item) = item else {
                     in_flight.lock().push(idx);
                     unmatched.fetch_add(1, atomic::Ordering::Relaxed);
-                    return Match { score: 0, idx: u32::MAX };
+                    return Match {
+                        score: 0,
+                        idx: u32::MAX,
+                    };
                 };
                 if self.canceled.load(atomic::Ordering::Relaxed) {
                     return Match { score: 0, idx };
                 }
                 let Some(score) = pattern.score(item.matcher_columns, matchers.get()) else {
                     unmatched.fetch_add(1, atomic::Ordering::Relaxed);
-                    return Match { score: 0, idx: u32::MAX };
+                    return Match {
+                        score: 0,
+                        idx: u32::MAX,
+                    };
                 };
                 Match { score, idx }
             });

@@ -278,7 +278,10 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         } else {
             let Some(worker) = self.worker.try_lock_arc_for(Duration::from_millis(timeout)) else {
                 self.should_notify.store(true, Ordering::Release);
-                return Status{ changed: false, running: true };
+                return Status {
+                    changed: false,
+                    running: true,
+                };
             };
             worker
         };

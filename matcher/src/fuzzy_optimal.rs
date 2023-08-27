@@ -23,11 +23,7 @@ impl Matcher {
         // us to treat needle indices as u16
         let Some(mut matrix) = self.slab.alloc(&haystack[start..end], needle.len()) else {
             return self.fuzzy_match_greedy_::<INDICES, H, N>(
-                haystack,
-                needle,
-                start,
-                greedy_end,
-                indices,
+                haystack, needle, start, greedy_end, indices,
             );
         };
 
@@ -339,7 +335,7 @@ impl<H: Char> MatcherDataView<'_, H> {
             }
             let next_matched = row[col as usize].get(matched);
             if matched {
-                let Some((next_row_idx, next_row_off, next_row)) = row_iter.next() else{
+                let Some((next_row_idx, next_row_off, next_row)) = row_iter.next() else {
                     break;
                 };
                 col += row_off - next_row_off;

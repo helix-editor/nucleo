@@ -148,7 +148,7 @@ impl MatrixSlab {
         let layout = Layout::new::<MatcherData>();
         // safety: the matrix is never zero sized (hardcoded constants)
         let ptr = unsafe { alloc_zeroed(layout) };
-        let Some(ptr) = NonNull::new(ptr) else{
+        let Some(ptr) = NonNull::new(ptr) else {
             handle_alloc_error(layout)
         };
         MatrixSlab(ptr.cast())
