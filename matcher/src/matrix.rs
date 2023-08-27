@@ -74,7 +74,7 @@ impl<C: Char> MatrixLayout<C> {
         let base = ptr.as_ptr();
         let haystack = base.add(self.haystack_off) as *mut C;
         let haystack = slice_from_raw_parts_mut(haystack, self.haystack_len);
-        let bonus = base.add(self.bonus_off) as *mut u8;
+        let bonus = base.add(self.bonus_off);
         let bonus = slice_from_raw_parts_mut(bonus, self.haystack_len);
         let rows = base.add(self.rows_off) as *mut u16;
         let rows = slice_from_raw_parts_mut(rows, self.needle_len);
