@@ -1,12 +1,11 @@
 /*!
 `nucleo_matcher` is a low level crate that contains the matcher implementation
-used by the other nucleo crates.
+used by the high level `nucleo` crate.
 
 The matcher is hightly optimized and can significantly outperform `fzf` and
 `skim` (the `fuzzy-matcher` crate). However some of these optimizations require
-a slightly less convenient API. Particularly, `nucleo_matcher` requires that
-needles and haystacks are provided as [UTF32 strings](crate::Utf32Str) instead
-of rusts normal utf32 strings.
+a slightly less convenient API. Be sure to carefully read the documentation of the
+[`Matcher`] to avoid unexpected behaviour..
 */
 
 // sadly ranges don't optmimzie well
@@ -49,6 +48,33 @@ use crate::matrix::MatrixSlab;
 /// Note that the `indices` argument is **never cleared**. This allows running
 /// multiple different matches on the same haystack and merging the indices by
 /// sorting and deduplicating the vector.
+///
+/// The `needle` argument for each function must always be normalized by the caller
+/// (unicode normalization and case folding if a case insesnitive match is produced).
+/// Otherwise, the matcher may fail to produce a match. The [`pattern`] modules
+/// provides utilities to preprocess needles.
+///
+/// Additionally it's recommend to perform separate matches for each word in
+/// the needle. Consider the folloling example: If `foo bar` as used at the
+/// needle it  matches both `foo test baaar` and `foo hello-world bar`. However,
+/// `foo test baaar` will receive a lower score/rank lower. `baaar` contains a
+/// 2 character gap which will receive a penalty and therefore the user will
+/// likely expect it to rank lower. However, if `foo bar` is matched as a single
+/// query `hello-world` and `test` are both considered gaps too. As `hello-
+/// world` is a much longer gap then `test` the extra penalty for `baaar` is
+/// outweigh. If both words are matched individually the interspersed words
+/// do not receive a penalty and `foo hello-world bar` ranks higher.
+///
+/// In general nucleo is a **substring matching tool** with no penalty assigned
+/// to matches that start later within the same pattern (which enables the
+/// usecase shown above). This may be undesirable in one very particular usecase:
+/// For automatic suggestions for commands (like a shell). In these case the
+/// assumption is that the user is actually typing the full haystack. In other words:
+/// The matcher should prefer a prefix match. To accomedate that usecase the
+/// [`prefer_prefix`](MatcherConfig::prefer_prefix) option can be set
+/// to true. Note that the penalty given is quite small (and capped to a maximum)
+/// to avoid overwriting the normal scoring heuristic.
+///
 ///
 /// Matching is limited to 2^32-1 codepoints, if the haystack is longer than
 /// that the matcher *will panic*. The caller must decide whether it wants to

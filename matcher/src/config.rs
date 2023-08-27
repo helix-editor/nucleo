@@ -15,6 +15,14 @@ pub struct MatcherConfig {
     pub normalize: bool,
     /// whether to ignore casing
     pub ignore_case: bool,
+    /// Whether to provide a bonus to matches by their distance from the start
+    /// of the haystack. The bonus is fairly small compared to the normal gap
+    /// penalty to avoid messing with the normal score heuristic. This setting
+    /// is not turned on by default and only recommended for autocompletion
+    /// usecases where the expectation is that the user is typing the entire
+    /// match. For a full fzf-like fuzzy matcher/picker word segmentation and
+    /// explicit prefix literals should be used instead.
+    pub prefer_prefix: bool,
 }
 
 impl MatcherConfig {
@@ -26,6 +34,7 @@ impl MatcherConfig {
             initial_char_class: CharClass::Whitespace,
             normalize: true,
             ignore_case: true,
+            prefer_prefix: false,
         }
     };
 }

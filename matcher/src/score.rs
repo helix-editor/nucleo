@@ -6,6 +6,10 @@ use crate::{Matcher, MatcherConfig};
 pub(crate) const SCORE_MATCH: u16 = 16;
 pub(crate) const PENALTY_GAP_START: u16 = 3;
 pub(crate) const PENALTY_GAP_EXTENSION: u16 = 1;
+/// If the prefer_prefix option is enabled we want to penalize
+/// the initial gap. The prefix should not be too much  
+pub(crate) const PREFIX_BONUS_SCALE: u16 = 2;
+pub(crate) const MAX_PREFIX_BONUS: u16 = BONUS_BOUNDARY;
 
 // We prefer matches at the beginning of a word, but the bonus should not be
 // too great to prevent the longer acronym matches from always winning over
@@ -140,7 +144,15 @@ impl Matcher {
             }
             prev_class = class;
         }
-
+        if self.config.prefer_prefix {
+            if start != 0 {
+                let penalty = PENALTY_GAP_START
+                    + PENALTY_GAP_START * (start - 1).min(u16::MAX as usize) as u16;
+                score += MAX_PREFIX_BONUS.saturating_sub(penalty / PREFIX_BONUS_SCALE);
+            } else {
+                score += MAX_PREFIX_BONUS;
+            }
+        }
         score
     }
 }
