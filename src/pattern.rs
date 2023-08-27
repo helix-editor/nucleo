@@ -5,7 +5,7 @@ use nucleo_matcher::{Matcher, Utf32String};
 mod tests;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Default)]
-pub enum Status {
+pub(crate) enum Status {
     #[default]
     Unchanged,
     Update,

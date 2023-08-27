@@ -169,7 +169,7 @@ pub(crate) enum CharClass {
 /// Nucleo cannot match graphemes as single units. To work around
 /// that we only use the first codepoint of each grapheme. This
 /// iterator returns the first character of each unicode grapheme
-// in a string and is used for constructing `Utf32Str(ing)`.
+/// in a string and is used for constructing `Utf32Str(ing)`.
 pub fn graphemes(text: &str) -> impl Iterator<Item = char> + '_ {
     text.graphemes(true).map(|grapheme| {
         grapheme

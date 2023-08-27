@@ -1,10 +1,5 @@
 # Nucleo
 
-> Disclaimer: An 0.1 version has been published to crates.io.
-> This allows us to merge the `nucleo` integration into helix.
-> However, the public API is not yet final and will likely
-> change quite a bit in the next release. The documentation
-> is also not yet complete
 
 `nucleo` is a highly performant fuzzy matcher written in rust. It aims to fill the same use case as `fzf` and `skim`. Compared to `fzf` `nucleo` has a significantly faster matching algorithm. This mainly makes a difference when matching patterns with low selectivity on many items. An (unscientific) comparison is shown in the benchmark section below.
 
@@ -13,6 +8,12 @@
 **Compared to `skim`** (and the `fuzzy-matcher` crate) `nucleo` has an even larger performance advantage and is often around **six times faster** (see benchmarks below). Furthermore, the bonus system used by nucleo and fzf is (in my opinion) more consistent/superior. `nucleo` also handles non-ascii text much better. (`skim`s bonus system and even case insensitivity only work for ASCII).
 
 Nucleo also handles Unicode graphemes more correctly. `Fzf` and `skim` both operate on Unicode code points (chars). That means that multi codepoint graphemes can have weird effects (match multiple times, weirdly change the score, ...). `nucleo` will always use the first codepoint of the grapheme for matching instead (and reports grapheme indices, so they can be highlighted correctly). 
+
+## Status
+
+Nucleo is used in the helix-editor and therefore has a large user base with lots or real world testing. The core matcher implementation is considered complete and is unlikely to see major changes. The `nucleo-matcher` crate is finished and ready for widespread use, breaking changes should be very rare (a 1.0 release should not be far away).
+
+While the high level `nucleo` crate also works well (and is also used in helix), there are still additional features that will be added in the future. The high level crate also need better documentation and will likely see a few API changes in the future.
 
 ## Benchmarks
 

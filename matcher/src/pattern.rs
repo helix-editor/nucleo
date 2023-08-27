@@ -11,28 +11,28 @@ use crate::Utf32String;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[non_exhaustive]
-/// How nucleo will treat case mismatch
+/// How to treat a case mismatch between two characters.
 pub enum CaseMatching {
-    /// Characters always match their case folded version (`a == A`)
+    /// Characters always match their case folded version (`a == A`).
     Ignore,
-    /// Characters never match their case folded version (`a != A`)
+    /// Characters never match their case folded version (`a != A`).
     Respect,
-    /// Acts like `Ignore` if all characters in a pattern atom are
-    /// lowercase and like `Respect` otherwire
+    /// Acts like [`Ignore`](CaseMatching::Ignore) if all characters in a pattern atom are
+    /// lowercase and like [`Respect`](CaseMatching::Respect) otherwise.
     #[default]
     Smart,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]
-/// The kind of matching algorithm to run for this atom
+/// The kind of matching algorithm to run for an atom.
 pub enum AtomKind {
     /// Fuzzy matching where the needle must match any haystack characters
     /// (match can contain gaps). This atom kind is used by default if no
     /// special syntax is used. There is no negated fuzzy matching (too
     /// many false positives).
     ///
-    /// See also [`Matcher::exact_match`](crate::Matcher::exact_match).
+    /// See also [`Matcher::fuzzy_match`](crate::Matcher::fuzzy_match).
     Fuzzy,
     /// The needle must match a contiguous sequence of haystack characters
     /// without gaps.  This atom kind is parsed from the following syntax:
@@ -41,8 +41,8 @@ pub enum AtomKind {
     /// See also [`Matcher::substring_match`](crate::Matcher::substring_match).
     Substring,
     /// The needle must match all leading haystack characters without gaps or
-    /// prefix. This atom kind is parsed from the following syntax: `foo$` and
-    /// `!foo$` (negated).
+    /// prefix. This atom kind is parsed from the following syntax: `^foo` and
+    /// `!^foo` (negated).
     ///
     /// See also [`Matcher::prefix_match`](crate::Matcher::prefix_match).
     Prefix,
@@ -56,7 +56,7 @@ pub enum AtomKind {
     /// This atom kind is parsed from the following syntax: `^foo$` and `!^foo$`
     /// (negated).
     ///
-    /// See also [`Matcher::exact_match`] (crate::Matcher::exact_match).
+    /// See also [`Matcher::exact_match`](crate::Matcher::exact_match).
     Exact,
 }
 
@@ -74,8 +74,9 @@ pub struct Atom {
 }
 
 impl Atom {
-    /// Creates a single [`PatternAtom`] from a string by performing unicode
-    /// normalization
+    /// Creates a single [`Atom`] from a string by performing unicode
+    /// normalization and case folding (if necessary). Optionally `\ ` can
+    /// be escaped to ` `.
     pub fn new(needle: &str, case: CaseMatching, kind: AtomKind, escape_whitespace: bool) -> Atom {
         Atom::new_inner(needle, case, kind, escape_whitespace, false)
     }
@@ -254,12 +255,14 @@ impl Atom {
     }
 
     /// Matches this pattern against `haystack` (using the allocation and
-    /// configuration from `matcher`), calculates a ranking score and the matche
+    /// configuration from `matcher`), calculates a ranking score and the match
     /// indices. See the [`Matcher`](crate::Matcher). Documentation for more
     /// details.
     ///
     /// *Note:*  The `ignore_case` setting is overwritten to match the casing of
-    /// this pattern atom.
+    /// each pattern atom.
+    ///
+    /// *Note:*  The `indices` vector is not cleared by this function.
     pub fn indices(
         &self,
         haystack: Utf32Str<'_>,
@@ -299,15 +302,18 @@ impl Atom {
     pub fn needle_text(&self) -> Utf32Str<'_> {
         self.needle.slice(..)
     }
-    /// Convenience function to easily match on a (relatively small) list of
-    /// inputs. This is not recommended for building a full fuzzy matching
-    /// application that can match large numbers of matches (like all files in
-    /// a directory) as all matching is done on the current thread, effectively
-    /// blocking the UI.
+    /// Convenience function to easily match (and sort) a (relatively small)
+    /// list of inputs.
+    ///
+    /// *Note* This function is not recommended for building a full fuzzy
+    /// matching application that can match large numbers of matches (like all
+    /// files in a directory) as all matching is done on the current thread,
+    /// effectively blocking the UI. For such applications the high level
+    /// `nucleo` crate can be used instead.
     pub fn match_list<T: AsRef<str>>(
         &self,
-        matcher: &mut Matcher,
         items: impl IntoIterator<Item = T>,
+        matcher: &mut Matcher,
     ) -> Vec<(T, u16)> {
         if self.needle.is_empty() {
             return items.into_iter().map(|item| (item, 0)).collect();
@@ -338,7 +344,7 @@ fn pattern_atoms(pattern: &str) -> impl Iterator<Item = &str> + '_ {
 }
 
 #[derive(Debug, Default)]
-/// A fuzzy match pattern
+/// A text pattern made up of (potentially multiple) [atoms](crate::pattern::Atom).
 #[non_exhaustive]
 pub struct Pattern {
     /// The individual pattern (words) in this pattern
@@ -348,9 +354,9 @@ pub struct Pattern {
 impl Pattern {
     /// Creates a pattern where each word is matched individually (whitespaces
     /// can be escaped with `\`). Otherwise no parsing is performed (so $, !, '
-    /// and ^ don't receive special treatment). If you want to match the entiru
-    /// pattern as a single needle use a single [`PatternAtom`] instead
-    pub fn new(case_matching: CaseMatching, kind: AtomKind, pattern: &str) -> Pattern {
+    /// and ^ don't receive special treatment). If you want to match the entire
+    /// pattern as a single needle use a single [`Atom`] instead.
+    pub fn new(pattern: &str, case_matching: CaseMatching, kind: AtomKind) -> Pattern {
         let atoms = pattern_atoms(pattern)
             .filter_map(|pat| {
                 let pat = Atom::new(pat, case_matching, kind, true);
@@ -361,9 +367,9 @@ impl Pattern {
     }
     /// Creates a pattern where each word is matched individually (whitespaces
     /// can be escaped with `\`). And $, !, ' and ^ at word boundaries will
-    /// cause different matching behaviour (see [`PatternAtomKind`]). These can be
+    /// cause different matching behaviour (see [`AtomKind`]). These can be
     /// escaped with backslash.
-    pub fn parse(case_matching: CaseMatching, pattern: &str) -> Pattern {
+    pub fn parse(pattern: &str, case_matching: CaseMatching) -> Pattern {
         let atoms = pattern_atoms(pattern)
             .filter_map(|pat| {
                 let pat = Atom::parse(pat, case_matching);
@@ -373,15 +379,18 @@ impl Pattern {
         Pattern { atoms }
     }
 
-    /// Convenience function to easily match on a (relatively small) list of
-    /// inputs. This is not recommended for building a full fuzzy matching
-    /// application that can match large numbers of matches (like all files in
-    /// a directory) as all matching is done on the current thread, effectively
-    /// blocking the UI.
+    /// Convenience function to easily match (and sort) a (relatively small)
+    /// list of inputs.
+    ///
+    /// *Note* This function is not recommended for building a full fuzzy
+    /// matching application that can match large numbers of matches (like all
+    /// files in a directory) as all matching is done on the current thread,
+    /// effectively blocking the UI. For such applications the high level
+    /// `nucleo` crate can be used instead.
     pub fn match_list<T: AsRef<str>>(
         &self,
-        matcher: &mut Matcher,
         items: impl IntoIterator<Item = T>,
+        matcher: &mut Matcher,
     ) -> Vec<(T, u32)> {
         if self.atoms.is_empty() {
             return items.into_iter().map(|item| (item, 0)).collect();
@@ -416,7 +425,7 @@ impl Pattern {
     }
 
     /// Matches this pattern against `haystack` (using the allocation and
-    /// configuration from `matcher`), calculates a ranking score and the matche
+    /// configuration from `matcher`), calculates a ranking score and the match
     /// indices. See the [`Matcher`](crate::Matcher). Documentation for more
     /// details.
     ///
@@ -424,8 +433,16 @@ impl Pattern {
     /// each pattern atom.
     ///
     /// *Note:*  The indices for each pattern are calculated individually
-    /// and simply appended to the `indices` vector. This allows
+    /// and simply appended to the `indices` vector and not deduplicated/sorted.
+    /// This allows associating the match indices to their source pattern. If
+    /// required (like for highlighting) unique/sorted indices can be obtained
+    /// as follows:
     ///
+    /// ```
+    /// # let mut indices: Vec<u32> = Vec::new();
+    /// indices.sort_unstable();
+    /// indices.dedup();
+    /// ```
     pub fn indices(
         &self,
         haystack: Utf32Str<'_>,
@@ -442,7 +459,9 @@ impl Pattern {
         Some(score)
     }
 
-    /// Refreshes this pattern by reparsing a
+    /// Refreshes this pattern by reparsing it from a string. This is mostly
+    /// equivalent to just constructing a new pattern using [`Pattern::parse`]
+    /// but is slightly more efficient by reusing some allocations
     pub fn reparse(&mut self, pattern: &str, case_matching: CaseMatching) {
         self.atoms.clear();
         let atoms = pattern_atoms(pattern).filter_map(|atom| {
