@@ -27,7 +27,7 @@ mod utf32_str;
 mod tests;
 
 pub use crate::config::MatcherConfig;
-pub use crate::utf32_str::Utf32Str;
+pub use crate::utf32_str::{Utf32Str, Utf32String};
 
 use crate::chars::{AsciiChar, Char};
 use crate::matrix::MatrixSlab;

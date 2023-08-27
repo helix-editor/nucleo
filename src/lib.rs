@@ -8,14 +8,12 @@ use parking_lot::Mutex;
 use rayon::ThreadPool;
 
 pub use crate::pattern::{CaseMatching, MultiPattern, Pattern, PatternKind};
-pub use crate::utf32_string::Utf32String;
 use crate::worker::Worker;
-pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str};
+pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str, Utf32String};
 
 mod boxcar;
 mod par_sort;
 mod pattern;
-mod utf32_string;
 mod worker;
 
 pub struct Item<'a, T> {
