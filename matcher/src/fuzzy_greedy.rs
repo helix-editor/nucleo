@@ -21,7 +21,7 @@ impl Matcher {
                         if c.normalize(&self.config) == needle_char {
                             let Some(next_needle_char) = needle_iter.next() else {
                                 // we found a match so we are now in the same state
-                                // as the prefilter would produce 
+                                // as the prefilter would produce
                                 end = first_char_end + i + 1;
                                 break 'nonascii;
                             };

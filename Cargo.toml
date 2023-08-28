@@ -2,7 +2,7 @@
 name = "nucleo"
 description = "plug and play high performance fuzzy matcher"
 authors = ["Pascal Kuthe <pascal.kuthe@semimod.de>"]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 license = "MPL-2.0"
 repository = "https://github.com/helix-editor/nucleo"
@@ -11,7 +11,7 @@ readme = "README.md"
 [lib]
 
 [dependencies]
-nucleo-matcher = { version = "0.1", path = "matcher" }
+nucleo-matcher = { version = "0.2.0", path = "matcher" }
 parking_lot = { version = "0.12.1", features = ["send_guard", "arc_lock"]}
 rayon = "1.7.0"
 

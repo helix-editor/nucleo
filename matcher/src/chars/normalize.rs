@@ -495,6 +495,16 @@ const DATA3_END: u32 = DATA3[DATA3.len() - 1].0 as u32 + 1;
 const LEN3: usize = (DATA3_END - DATA3_START) as usize;
 static TABLE3: [char; LEN3] = generate_table(&DATA3);
 
+/// Normalizes a unicode character by converting latin characters
+/// which are variants of ASCII characters to their latin equivant.
+///
+/// # Example
+///
+/// ``` rust
+/// # use nucleo_matcher::chars::normalize;
+///
+/// assert_eq!(normalize('ä'), 'a');
+/// ```
 pub fn normalize(c: char) -> char {
     let i = c as u32;
     if i < DATA1_START || i >= DATA3_END {

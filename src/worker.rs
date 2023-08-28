@@ -3,7 +3,7 @@ use std::mem::take;
 use std::sync::atomic::{self, AtomicBool, AtomicU32};
 use std::sync::Arc;
 
-use nucleo_matcher::MatcherConfig;
+use nucleo_matcher::Config;
 use parking_lot::Mutex;
 use rayon::{prelude::*, ThreadPool};
 
@@ -42,15 +42,15 @@ impl<T: Sync + Send + 'static> Worker<T> {
     pub(crate) fn item_count(&self) -> u32 {
         self.last_snapshot - self.in_flight.len() as u32
     }
-    pub(crate) fn update_config(&mut self, config: MatcherConfig) {
+    pub(crate) fn update_config(&mut self, config: Config) {
         for matcher in self.matchers.0.iter_mut() {
-            matcher.get_mut().config = config;
+            matcher.get_mut().config = config.clone();
         }
     }
 
     pub(crate) fn new(
         worker_threads: Option<usize>,
-        config: MatcherConfig,
+        config: Config,
         notify: Arc<(dyn Fn() + Sync + Send)>,
         cols: u32,
     ) -> (ThreadPool, Self) {
@@ -62,7 +62,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
             .build()
             .expect("creating threadpool failed");
         let matchers = (0..worker_threads)
-            .map(|_| UnsafeCell::new(nucleo_matcher::Matcher::new(config)))
+            .map(|_| UnsafeCell::new(nucleo_matcher::Matcher::new(config.clone())))
             .collect();
         let worker = Worker {
             running: false,
@@ -70,7 +70,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
             last_snapshot: 0,
             matches: Vec::new(),
             // just a placeholder
-            pattern: MultiPattern::new(&config, crate::CaseMatching::Ignore, 0),
+            pattern: MultiPattern::new(cols as usize),
             canceled: Arc::new(AtomicBool::new(false)),
             should_notify: Arc::new(AtomicBool::new(false)),
             was_canceled: false,
@@ -102,14 +102,20 @@ impl<T: Sync + Send + 'static> Worker<T> {
                 let Some(item) = item else {
                     in_flight.lock().push(idx);
                     unmatched.fetch_add(1, atomic::Ordering::Relaxed);
-                    return Match { score: 0, idx: u32::MAX };
+                    return Match {
+                        score: 0,
+                        idx: u32::MAX,
+                    };
                 };
                 if self.canceled.load(atomic::Ordering::Relaxed) {
                     return Match { score: 0, idx };
                 }
                 let Some(score) = pattern.score(item.matcher_columns, matchers.get()) else {
                     unmatched.fetch_add(1, atomic::Ordering::Relaxed);
-                    return Match { score: 0, idx: u32::MAX };
+                    return Match {
+                        score: 0,
+                        idx: u32::MAX,
+                    };
                 };
                 Match { score, idx }
             });
@@ -156,7 +162,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
         }
 
         // TODO: be smarter around reusing past results for rescoring
-        if self.pattern.cols.iter().all(|pat| pat.is_empty()) {
+        if self.pattern.is_empty() {
             self.reset_matches();
             self.process_new_items_trivial();
             if self.should_notify.load(atomic::Ordering::Relaxed) {

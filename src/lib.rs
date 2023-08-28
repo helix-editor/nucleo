@@ -1,4 +1,31 @@
-use std::cmp::Reverse;
+/*!
+`nucleo` is a high level crate that provides a high level matcher API that
+provides a highly effective (parallel) matcher worker. It's designed to allow
+quickly plugging a fully featured (and faster) fzf/skim like fuzzy matcher into
+your TUI application.
+
+It's designed to run matching on a background threadpool while providing a
+snapshot of the last complete match. That means the matcher can update the
+results live while the user is typing while never blocking the main UI thread
+(beyond a user provided timeout). Nucleo also supports fully concurrent lock-free
+(and wait-free) streaming of input items.
+
+The [`Nucleo`] struct servers as the main API entrypoint for this crate.
+
+# Status
+
+Nucleo is used in the helix-editor and therefore has a large user base with lots
+or real world testing. The core matcher implementation is considered complete
+and is unlikely to see major changes. The `nucleo-matcher` crate is finished and
+ready for widespread use, breaking changes should be very rare (a 1.0 release
+should not be far away).
+
+While the high level `nucleo` crate also works well (and is also used in helix),
+there are still additional features that will be added in the future. The high
+level crate also need better documentation and will likely see a few API
+changes in the future.
+
+*/
 use std::ops::{Bound, RangeBounds};
 use std::sync::atomic::{self, AtomicBool, Ordering};
 use std::sync::Arc;
@@ -7,22 +34,25 @@ use std::time::Duration;
 use parking_lot::Mutex;
 use rayon::ThreadPool;
 
-pub use crate::pattern::{CaseMatching, MultiPattern, Pattern, PatternKind};
-pub use crate::utf32_string::Utf32String;
+use crate::pattern::MultiPattern;
 use crate::worker::Worker;
-pub use nucleo_matcher::{chars, Matcher, MatcherConfig, Utf32Str};
+pub use nucleo_matcher::{chars, Config, Matcher, Utf32Str, Utf32String};
 
 mod boxcar;
 mod par_sort;
-mod pattern;
-mod utf32_string;
+pub mod pattern;
 mod worker;
 
+/// A match candidate stored in a [`Nucleo`] worker.
 pub struct Item<'a, T> {
     pub data: &'a T,
     pub matcher_columns: &'a [Utf32String],
 }
 
+/// A handle that allow adding new items [`Nucleo`] worker.
+///
+/// It's internally reference counted and can be cheaply cloned
+/// and send acsorss tread
 pub struct Injector<T> {
     items: Arc<boxcar::Vec<T>>,
     notify: Arc<(dyn Fn() + Sync + Send)>,
@@ -38,15 +68,17 @@ impl<T> Clone for Injector<T> {
 }
 
 impl<T> Injector<T> {
-    /// Appends an element to the back of the vector.
+    /// Appends an element to the list of matched items.
+    /// This function is lock-free and wait-free.
     pub fn push(&self, value: T, fill_columns: impl FnOnce(&mut [Utf32String])) -> u32 {
         let idx = self.items.push(value, fill_columns);
         (self.notify)();
         idx
     }
 
-    /// Returns the total number of items in the current
-    /// queue
+    /// Returns the total number of items injected in the matcher. This might
+    /// not match the number of items in the match snapshot (if the matcher
+    /// is still running)
     pub fn injected_items(&self) -> u32 {
         self.items.count()
     }
@@ -69,18 +101,24 @@ impl<T> Injector<T> {
     }
 }
 
+/// An [item](crate::Item) that was successfully matched by a [`Nucleo`] worker.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Match {
     pub score: u32,
     pub idx: u32,
 }
 
+/// That status of a [`Nucleo`] worker after a match.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Status {
+    /// Whether the current snapshot has changed.
     pub changed: bool,
+    /// Whether the matcher is still processing in the background.
     pub running: bool,
 }
 
+/// A snapshot represent the results of a [`Nucleo`] worker after
+/// finishing a [`tick`](Nucleo::tick).
 pub struct Snapshot<T: Sync + Send + 'static> {
     item_count: u32,
     matches: Vec<Match>,
@@ -181,6 +219,8 @@ impl<T: Sync + Send + 'static> Snapshot<T> {
     }
 }
 
+/// A high level matcher worker that quickly computes matches in a background
+/// threadpool.
 pub struct Nucleo<T: Sync + Send + 'static> {
     // the way the API is build we totally don't actually need these to be Arcs
     // but this lets us avoid some unsafe
@@ -192,15 +232,31 @@ pub struct Nucleo<T: Sync + Send + 'static> {
     items: Arc<boxcar::Vec<T>>,
     notify: Arc<(dyn Fn() + Sync + Send)>,
     snapshot: Snapshot<T>,
+    /// The pattern matched by this matcher. To update the match pattern
+    /// [`MultiPattern::reparse`](`pattern::MultiPattern::reparse`) should be used.
+    /// Note that the matcher worker will only become aware of the new pattern
+    /// after a call to [`tick`](Nucleo::tick).
     pub pattern: MultiPattern,
 }
 
 impl<T: Sync + Send + 'static> Nucleo<T> {
+    /// Constructs a new `nucleo` worker threadpool with the provided `config`.
+    ///
+    /// `notify` is called everytime new information is available and
+    /// [`tick`](Nucleo::tick) should be called. Note that `notify` is not
+    /// debounced, that should be handled by the downstream crate (for example
+    /// debouncing to only redraw at most every 1/60 seconds).
+    ///
+    /// If `None` is passed for the number of worker threads, nucleo will use
+    /// one thread per hardware thread.
+    ///
+    /// Nucleo can match items with multiple orthogonal properties. `columns`
+    /// indicates how many matching columns each item (and the pattern) has. The
+    /// number of columns can not be changed after construction.
     pub fn new(
-        config: MatcherConfig,
+        config: Config,
         notify: Arc<(dyn Fn() + Sync + Send)>,
         num_threads: Option<usize>,
-        case_matching: CaseMatching,
         columns: u32,
     ) -> Self {
         let (pool, worker) = Worker::new(num_threads, config, notify.clone(), columns);
@@ -209,10 +265,10 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
             should_notify: worker.should_notify.clone(),
             items: worker.items.clone(),
             pool,
-            pattern: MultiPattern::new(&config, case_matching, columns as usize),
+            pattern: MultiPattern::new(columns as usize),
             snapshot: Snapshot {
                 matches: Vec::with_capacity(2 * 1024),
-                pattern: MultiPattern::new(&config, case_matching, columns as usize),
+                pattern: MultiPattern::new(columns as usize),
                 item_count: 0,
                 items: worker.items.clone(),
             },
@@ -222,11 +278,12 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         }
     }
 
-    /// Returns a snapshot of all items
+    /// Returns a snapshot of the current matcher state.
     pub fn snapshot(&self) -> &Snapshot<T> {
         &self.snapshot
     }
 
+    /// Returns an injector that can be used for adding candidates to the matcher.
     pub fn injector(&self) -> Injector<T> {
         Injector {
             items: self.items.clone(),
@@ -234,11 +291,11 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         }
     }
 
-    /// Restart the the item stream. Removes all items  disconnects all
-    /// previously created injectors from this instance. If `clear_snapshot` is
-    /// `true` then all items and matched are removed from the
-    /// [`Snapshot`](crate::Snapshot) immediately. Otherwise the snapshot will
-    /// keep the current matches until the matcher has run again.
+    /// Restart the the item stream. Removes all items and disconnects all
+    /// previously created injectors from this instance. If `clear_snapshot`
+    /// is `true` then all items and matched are removed from the [`Snapshot`]
+    /// (crate::Snapshot) immediately. Otherwise the snapshot will keep the
+    /// current matches until the matcher has run again.
     ///
     /// # Note
     ///
@@ -254,10 +311,14 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         }
     }
 
-    pub fn update_config(&mut self, config: MatcherConfig) {
+    pub fn update_config(&mut self, config: Config) {
         self.worker.lock().update_config(config)
     }
 
+    /// The main way to interact with the matcher, this should be called
+    /// regularly (for example each time a frame is rendered). To avoid
+    /// excessive redraws this method will wait `timeout` milliseconds for the
+    /// worker therad to finish. It is recommend to set the timeout to 10ms.
     pub fn tick(&mut self, timeout: u64) -> Status {
         self.should_notify.store(false, atomic::Ordering::Relaxed);
         let status = self.pattern.status();
@@ -278,7 +339,10 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         } else {
             let Some(worker) = self.worker.try_lock_arc_for(Duration::from_millis(timeout)) else {
                 self.should_notify.store(true, Ordering::Release);
-                return Status{ changed: false, running: true };
+                return Status {
+                    changed: false,
+                    running: true,
+                };
             };
             worker
         };
@@ -319,32 +383,4 @@ impl<T: Sync + Send> Drop for Nucleo<T> {
             unreachable!("thread pool failed to shutdown properly")
         }
     }
-}
-
-/// convenience function to easily fuzzy match
-/// on a (relatively small) list of inputs. This is not recommended for building a full tui
-/// application that can match large numbers of matches as all matching is done on the current
-/// thread, effectively blocking the UI
-pub fn fuzzy_match<T: AsRef<str>>(
-    matcher: &mut Matcher,
-    pattern: &str,
-    items: impl IntoIterator<Item = T>,
-    case_matching: CaseMatching,
-) -> Vec<(T, u32)> {
-    let mut pattern_ = Pattern::new(&matcher.config, case_matching);
-    pattern_.set_literal(pattern, PatternKind::Fuzzy, false);
-    if pattern_.is_empty() {
-        return items.into_iter().map(|item| (item, 0)).collect();
-    }
-    let mut buf = Vec::new();
-    let mut items: Vec<_> = items
-        .into_iter()
-        .filter_map(|item| {
-            pattern_
-                .score(Utf32Str::new(item.as_ref(), &mut buf), matcher)
-                .map(|score| (item, score))
-        })
-        .collect();
-    items.sort_by_key(|(_, score)| Reverse(*score));
-    items
 }

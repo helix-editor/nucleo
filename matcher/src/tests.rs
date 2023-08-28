@@ -1,10 +1,10 @@
 use crate::chars::Char;
 use crate::score::{
     BONUS_BOUNDARY, BONUS_CAMEL123, BONUS_CONSECUTIVE, BONUS_FIRST_CHAR_MULTIPLIER, BONUS_NON_WORD,
-    PENALTY_GAP_EXTENSION, PENALTY_GAP_START, SCORE_MATCH,
+    MAX_PREFIX_BONUS, PENALTY_GAP_EXTENSION, PENALTY_GAP_START, SCORE_MATCH,
 };
 use crate::utf32_str::Utf32Str;
-use crate::{Matcher, MatcherConfig};
+use crate::{Config, Matcher};
 
 use Algorithm::*;
 
@@ -23,12 +23,14 @@ fn assert_matches(
     normalize: bool,
     case_sensitive: bool,
     path: bool,
+    prefer_prefix: bool,
     cases: &[(&str, &str, &[u32], u16)],
 ) {
-    let mut config = MatcherConfig {
+    let mut config = Config {
         normalize,
         ignore_case: !case_sensitive,
-        ..MatcherConfig::DEFAULT
+        prefer_prefix,
+        ..Config::DEFAULT
     };
     if path {
         config.set_match_paths();
@@ -87,10 +89,10 @@ pub fn assert_not_matches(
     path: bool,
     cases: &[(&str, &str)],
 ) {
-    let mut config = MatcherConfig {
+    let mut config = Config {
         normalize,
         ignore_case: !case_sensitive,
-        ..MatcherConfig::DEFAULT
+        ..Config::DEFAULT
     };
     if path {
         config.set_match_paths();
@@ -132,13 +134,14 @@ pub fn assert_not_matches(
     }
 }
 
-const BONUS_BOUNDARY_WHITE: u16 = MatcherConfig::DEFAULT.bonus_boundary_white;
-const BONUS_BOUNDARY_DELIMITER: u16 = MatcherConfig::DEFAULT.bonus_boundary_delimiter;
+const BONUS_BOUNDARY_WHITE: u16 = Config::DEFAULT.bonus_boundary_white;
+const BONUS_BOUNDARY_DELIMITER: u16 = Config::DEFAULT.bonus_boundary_delimiter;
 
 #[test]
 fn test_fuzzy() {
     assert_matches(
         &[FuzzyGreedy, FuzzyOptimal],
+        false,
         false,
         false,
         false,
@@ -250,6 +253,7 @@ fn empty_needle() {
         false,
         false,
         false,
+        false,
         &[("foo bar baz", "", &[], 0)],
     );
 }
@@ -258,6 +262,7 @@ fn empty_needle() {
 fn test_substring() {
     assert_matches(
         &[Substring, Prefix],
+        false,
         false,
         false,
         false,
@@ -287,6 +292,7 @@ fn test_substring() {
         false,
         false,
         false,
+        false,
         &[
             (
                 "foo bar baz",
@@ -313,6 +319,7 @@ fn test_substring() {
         false,
         false,
         false,
+        false,
         &[
             (
                 "foo",
@@ -336,6 +343,7 @@ fn test_substring() {
     );
     assert_matches(
         &[Substring],
+        false,
         false,
         false,
         false,
@@ -377,6 +385,7 @@ fn test_fuzzy_case_sensitive() {
         false,
         true,
         false,
+        false,
         &[
             (
                 "fooBarbaz1",
@@ -416,6 +425,7 @@ fn test_normalize() {
     assert_matches(
         &[FuzzyGreedy, FuzzyOptimal],
         true,
+        false,
         false,
         false,
         &[
@@ -464,6 +474,7 @@ fn test_unicode() {
         true,
         false,
         false,
+        false,
         &[
             (
                 "你好世界",
@@ -488,6 +499,7 @@ fn test_long_str() {
         false,
         false,
         false,
+        false,
         &[(
             &"x".repeat(u16::MAX as usize + 1),
             "xx",
@@ -501,6 +513,7 @@ fn test_long_str() {
 fn test_casing() {
     assert_matches(
         &[FuzzyGreedy, FuzzyOptimal],
+        false,
         false,
         false,
         false,
@@ -536,10 +549,12 @@ fn test_casing() {
         ],
     )
 }
+
 #[test]
 fn test_optimal() {
     assert_matches(
         &[FuzzyOptimal],
+        false,
         false,
         false,
         false,
@@ -623,4 +638,33 @@ fn test_reject() {
         ],
     );
     assert_not_matches(false, false, false, &[("ۂۂfoۂۂ", "foo")]);
+}
+
+#[test]
+fn test_prefer_prefix() {
+    assert_matches(
+        &[FuzzyOptimal, FuzzyGreedy],
+        false,
+        false,
+        false,
+        true,
+        &[
+            (
+                "Moby Dick",
+                "md",
+                &[0, 5],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 1)  + MAX_PREFIX_BONUS
+                    - PENALTY_GAP_START
+                    - 3 * PENALTY_GAP_EXTENSION,
+            ),
+            (
+                "Though I cannot tell why it was exactly that those stage managers, the Fates, put me down for this shabby part of a whaling voyage",
+                "md",
+                &[82, 85],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 1)
+                    - PENALTY_GAP_START
+                    - PENALTY_GAP_EXTENSION,
+            ),
+        ],
+    );
 }
