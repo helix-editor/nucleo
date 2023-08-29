@@ -13,13 +13,15 @@ use crate::Utf32String;
 #[non_exhaustive]
 /// How to treat a case mismatch between two characters.
 pub enum CaseMatching {
-    /// Characters always match their case folded version (`a == A`).
-    Ignore,
     /// Characters never match their case folded version (`a != A`).
     Respect,
+    /// Characters always match their case folded version (`a == A`).
+    #[cfg(feature = "unicode-casefold")]
+    Ignore,
     /// Acts like [`Ignore`](CaseMatching::Ignore) if all characters in a pattern atom are
     /// lowercase and like [`Respect`](CaseMatching::Respect) otherwise.
     #[default]
+    #[cfg(feature = "unicode-casefold")]
     Smart,
 }
 
@@ -106,10 +108,12 @@ impl Atom {
             };
 
             match case {
+                #[cfg(feature = "unicode-casefold")]
                 CaseMatching::Ignore => {
                     ignore_case = true;
                     needle.make_ascii_lowercase()
                 }
+                #[cfg(feature = "unicode-casefold")]
                 CaseMatching::Smart => {
                     ignore_case = !needle.bytes().any(|b| b.is_ascii_uppercase())
                 }
@@ -121,7 +125,14 @@ impl Atom {
             Utf32String::Ascii(needle.into_boxed_str())
         } else {
             let mut needle_ = Vec::with_capacity(needle.len());
-            ignore_case = matches!(case, CaseMatching::Ignore | CaseMatching::Smart);
+            #[cfg(feature = "unicode-casefold")]
+            {
+                ignore_case = matches!(case, CaseMatching::Ignore | CaseMatching::Smart);
+            }
+            #[cfg(not(feature = "unicode-casefold"))]
+            {
+                ignore_case = false;
+            }
             if escape_whitespace {
                 let mut saw_backslash = false;
                 for mut c in chars::graphemes(needle) {
@@ -136,7 +147,9 @@ impl Atom {
                     }
                     saw_backslash = c == '\\';
                     match case {
+                        #[cfg(feature = "unicode-casefold")]
                         CaseMatching::Ignore => c = chars::to_lower_case(c),
+                        #[cfg(feature = "unicode-casefold")]
                         CaseMatching::Smart => {
                             ignore_case = ignore_case && !chars::is_upper_case(c)
                         }
@@ -147,7 +160,9 @@ impl Atom {
             } else {
                 let chars = chars::graphemes(needle).map(|mut c| {
                     match case {
+                        #[cfg(feature = "unicode-casefold")]
                         CaseMatching::Ignore => c = chars::to_lower_case(c),
+                        #[cfg(feature = "unicode-casefold")]
                         CaseMatching::Smart => {
                             ignore_case = ignore_case && !chars::is_upper_case(c);
                         }
