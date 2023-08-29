@@ -64,6 +64,10 @@ impl MultiPattern {
         self.cols[column].0.reparse(new_text, case_matching);
     }
 
+    pub fn column_pattern(&self, column: usize) -> &Pattern {
+        &self.cols[column].0
+    }
+
     pub(crate) fn status(&self) -> Status {
         self.cols
             .iter()
