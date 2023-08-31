@@ -50,7 +50,7 @@ For example in the following two screencasts the pattern `///.` is pasted into `
 
 # Future Work
 
-* [ ] merge integration into helix
+* [x] merge integration into helix
 * [ ] build a standalone CLI application
   * [ ] reach feature parity with `fzf` (mostly `--no-sort` and `--tac`)
   * [ ] add a way to allow columnar matching
