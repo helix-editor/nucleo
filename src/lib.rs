@@ -273,7 +273,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
                 items: worker.items.clone(),
             },
             worker: Arc::new(Mutex::new(worker)),
-            cleared: false,
+            cleared: true,
             notify,
         }
     }
@@ -323,12 +323,15 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         self.should_notify.store(false, atomic::Ordering::Relaxed);
         let status = self.pattern.status();
         let canceled = status != pattern::Status::Unchanged || self.cleared;
-        let res = self.tick_inner(timeout, canceled, status);
-        self.cleared = false;
+        let mut res = self.tick_inner(timeout, canceled, status);
         if !canceled {
             return res;
         }
-        self.tick_inner(timeout, false, pattern::Status::Unchanged)
+        self.cleared = false;
+        let status2 = self.tick_inner(timeout, false, pattern::Status::Unchanged);
+        res.changed |= status2.changed;
+        res.running = status2.running;
+        res
     }
 
     fn tick_inner(&mut self, timeout: u64, canceled: bool, status: pattern::Status) -> Status {
