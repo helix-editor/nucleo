@@ -3,7 +3,7 @@
 
 `nucleo` is a highly performant fuzzy matcher written in rust. It aims to fill the same use case as `fzf` and `skim`. Compared to `fzf` `nucleo` has a significantly faster matching algorithm. This mainly makes a difference when matching patterns with low selectivity on many items. An (unscientific) comparison is shown in the benchmark section below.
 
-> Note: If you are looking for a replacement of the `fuzzy-matcher` crate and not a fully managed fuzzy picker, you should use the [`nulceo-matcher`](https://crates.io/crates/nucleo-matcher) crate.
+> Note: If you are looking for a replacement of the `fuzzy-matcher` crate and not a fully managed fuzzy picker, you should use the [`nucleo-matcher`](https://crates.io/crates/nucleo-matcher) crate.
 
 `nucleo` uses the exact **same scoring system as fzf**. That means you should get the same ranking quality (or better) as you are used to from fzf. However, `nucleo` has a more faithful implementation of the Smith-Waterman algorithm which is normally used in DNA sequence alignment (see https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/gaps.pdf) with two separate matrices (instead of one like fzf). This means that `nucleo` finds the optimal match more often. For example if you match `foo` in `xf foo` `nucleo` will match `x__foo` but `fzf` will match `xf_oo` (you can increase the word length the result will stay the same). The former is the more intuitive match and has a higher score according to the ranking system that both `nucleo` and fzf.
 
