@@ -93,7 +93,7 @@ use crate::matrix::MatrixSlab;
 /// memory is fairly large (around 135KB) so creating a matcher is expensive.
 ///
 /// All `.._match` functions will not compute the indices  of the matched
-/// characters. These should be used to prefitler to filter and rank all
+/// characters. These should be used to prefilter to filter and rank all
 /// matches. All `.._indices` functions will also compute the indices of the
 /// matched characters but are slower compared to the `..match` variant. These
 /// should be used when rendering the best N matches. Note that the `indices`
