@@ -49,10 +49,10 @@ pub struct Item<'a, T> {
     pub matcher_columns: &'a [Utf32String],
 }
 
-/// A handle that allow adding new items [`Nucleo`] worker.
+/// A handle that allows adding new items to a [`Nucleo`] worker.
 ///
 /// It's internally reference counted and can be cheaply cloned
-/// and send acsorss tread
+/// and sent across threads.
 pub struct Injector<T> {
     items: Arc<boxcar::Vec<T>>,
     notify: Arc<(dyn Fn() + Sync + Send)>,
