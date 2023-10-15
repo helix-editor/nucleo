@@ -62,7 +62,7 @@ pub enum AtomKind {
     Exact,
 }
 
-/// A single pattern component that is matched with a single [`Matcher`](crate::Matcher) function
+/// A single pattern component that is matched with a single [`Matcher`] function
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Atom {
     /// Whether this pattern atom is a negative match.
@@ -245,7 +245,7 @@ impl Atom {
     }
 
     /// Matches this pattern against `haystack` (using the allocation and configuration
-    /// from `matcher`) and calculates a ranking score. See the [`Matcher`](crate::Matcher).
+    /// from `matcher`) and calculates a ranking score. See the [`Matcher`].
     /// Documentation for more details.
     ///
     /// *Note:*  The `ignore_case` setting is overwritten to match the casing of
@@ -271,7 +271,7 @@ impl Atom {
 
     /// Matches this pattern against `haystack` (using the allocation and
     /// configuration from `matcher`), calculates a ranking score and the match
-    /// indices. See the [`Matcher`](crate::Matcher). Documentation for more
+    /// indices. See the [`Matcher`]. Documentation for more
     /// details.
     ///
     /// *Note:*  The `ignore_case` setting is overwritten to match the casing of
@@ -423,7 +423,7 @@ impl Pattern {
     }
 
     /// Matches this pattern against `haystack` (using the allocation and configuration
-    /// from `matcher`) and calculates a ranking score. See the [`Matcher`](crate::Matcher).
+    /// from `matcher`) and calculates a ranking score. See the [`Matcher`].
     /// Documentation for more details.
     ///
     /// *Note:*  The `ignore_case` setting is overwritten to match the casing of
@@ -441,7 +441,7 @@ impl Pattern {
 
     /// Matches this pattern against `haystack` (using the allocation and
     /// configuration from `matcher`), calculates a ranking score and the match
-    /// indices. See the [`Matcher`](crate::Matcher). Documentation for more
+    /// indices. See the [`Matcher`]. Documentation for more
     /// details.
     ///
     /// *Note:*  The `ignore_case` setting is overwritten to match the casing of
