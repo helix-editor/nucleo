@@ -27,7 +27,7 @@ impl Matcher {
                     max_pos = i as u32;
                     max_score = score;
                     // can't get better than this
-                    if score >= self.config.bonus_boundary_white {
+                    if bonus >= self.config.bonus_boundary_white {
                         break;
                     }
                 }
@@ -45,7 +45,7 @@ impl Matcher {
                     max_pos = i as u32;
                     max_score = score;
                     // can't get better than this
-                    if score >= self.config.bonus_boundary_white {
+                    if bonus >= self.config.bonus_boundary_white {
                         break;
                     }
                 }
@@ -88,7 +88,7 @@ impl Matcher {
                 max_pos = i;
                 max_score = score;
                 // can't get better than this
-                if score >= self.config.bonus_boundary_white {
+                if bonus >= self.config.bonus_boundary_white {
                     break;
                 }
             }
@@ -163,7 +163,7 @@ impl Matcher {
                     max_pos = i;
                     max_score = score;
                     // can't get better than this
-                    if score >= self.config.bonus_boundary_white {
+                    if bonus >= self.config.bonus_boundary_white {
                         break;
                     }
                 }
@@ -207,7 +207,7 @@ impl Matcher {
                 max_pos = i as u32;
                 max_score = score;
                 // can't get better than this
-                if score >= self.config.bonus_boundary_white {
+                if bonus >= self.config.bonus_boundary_white {
                     break;
                 }
             }
@@ -253,7 +253,7 @@ impl Matcher {
                 max_pos = i;
                 max_score = score;
                 // can't get better than this
-                if score >= self.config.bonus_boundary_white {
+                if bonus >= self.config.bonus_boundary_white {
                     break;
                 }
             }
