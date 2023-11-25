@@ -1,5 +1,13 @@
 # Changelog
 
+# Unreleased
+
+## Bugfixes
+
+* when the needle is composed of a single char, return the score and index
+  of the best position instead of always returning the first matched character
+  in the haystack
+
 # [0.2.1] - 2023-09-02
 
 ## Bugfixes
