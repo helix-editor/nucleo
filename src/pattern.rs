@@ -1,4 +1,4 @@
-pub use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Pattern};
+pub use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Matcher, Utf32String};
 
 #[cfg(test)]
@@ -46,6 +46,7 @@ impl MultiPattern {
         column: usize,
         new_text: &str,
         case_matching: CaseMatching,
+        normalization: Normalization,
         append: bool,
     ) {
         let old_status = self.cols[column].1;
@@ -61,7 +62,9 @@ impl MultiPattern {
         } else {
             self.cols[column].1 = Status::Rescore;
         }
-        self.cols[column].0.reparse(new_text, case_matching);
+        self.cols[column]
+            .0
+            .reparse(new_text, case_matching, normalization);
     }
 
     pub fn column_pattern(&self, column: usize) -> &Pattern {

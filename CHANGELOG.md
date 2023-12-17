@@ -1,9 +1,14 @@
 # Changelog
 
-# Unreleased
+# [0.3.0] - 2023-12-20
+
+## **Breaking Changes**
+
+* Pattern API method now requires a Unicode `Normalization` strategy in addition to a `CaseMatching` strategy.
 
 ## Bugfixes
 
+* correctly handle Unicode normalization when there are normalizable characters in the pattern, for example characters with umlauts
 * when the needle is composed of a single char, return the score and index
   of the best position instead of always returning the first matched character
   in the haystack
@@ -19,5 +24,6 @@
 *initial public release*
 
 
+[0.3.0]: https://github.com/helix-editor/nucleo/releases/tag/nucleo-v0.3.0
 [0.2.1]: https://github.com/helix-editor/nucleo/releases/tag/nucleo-v0.2.1
 [0.2.0]: https://github.com/helix-editor/nucleo/releases/tag/nucleo-v0.2.0

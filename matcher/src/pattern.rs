@@ -25,6 +25,19 @@ pub enum CaseMatching {
     Smart,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[non_exhaustive]
+/// How to handle unicode normalization,
+pub enum Normalization {
+    /// Characters never match their normalized version (`a != ä`).
+    Never,
+    /// Acts like [`Never`](Normalization::Never) if any character in a pattern atom
+    /// would need to be normalized. Otherwise normalization occurs (`a == ä` but `ä != a`).
+    #[default]
+    #[cfg(feature = "unicode-normalization")]
+    Smart,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]
 /// The kind of matching algorithm to run for an atom.
@@ -73,24 +86,41 @@ pub struct Atom {
     pub kind: AtomKind,
     needle: Utf32String,
     ignore_case: bool,
+    normalize: bool,
 }
 
 impl Atom {
     /// Creates a single [`Atom`] from a string by performing unicode
     /// normalization and case folding (if necessary). Optionally `\ ` can
     /// be escaped to ` `.
-    pub fn new(needle: &str, case: CaseMatching, kind: AtomKind, escape_whitespace: bool) -> Atom {
-        Atom::new_inner(needle, case, kind, escape_whitespace, false)
+    pub fn new(
+        needle: &str,
+        case: CaseMatching,
+        normalize: Normalization,
+        kind: AtomKind,
+        escape_whitespace: bool,
+    ) -> Atom {
+        Atom::new_inner(needle, case, normalize, kind, escape_whitespace, false)
     }
 
     fn new_inner(
         needle: &str,
         case: CaseMatching,
+        normalization: Normalization,
         kind: AtomKind,
         escape_whitespace: bool,
         append_dollar: bool,
     ) -> Atom {
         let mut ignore_case;
+        let mut normalize;
+        #[cfg(feature = "unicode-normalization")]
+        {
+            normalize = matches!(normalization, Normalization::Smart);
+        }
+        #[cfg(not(feature = "unicode-normalization"))]
+        {
+            normalize = false;
+        }
         let needle = if needle.is_ascii() {
             let mut needle = if escape_whitespace {
                 if let Some((start, rem)) = needle.split_once("\\ ") {
@@ -133,6 +163,10 @@ impl Atom {
             {
                 ignore_case = false;
             }
+            #[cfg(feature = "unicode-normalization")]
+            {
+                normalize = matches!(normalization, Normalization::Smart);
+            }
             if escape_whitespace {
                 let mut saw_backslash = false;
                 for mut c in chars::graphemes(needle) {
@@ -155,6 +189,13 @@ impl Atom {
                         }
                         CaseMatching::Respect => (),
                     }
+                    match normalization {
+                        #[cfg(feature = "unicode-normalization")]
+                        Normalization::Smart => {
+                            normalize = normalize && chars::normalize(c) == c;
+                        }
+                        Normalization::Never => (),
+                    }
                     needle_.push(c);
                 }
             } else {
@@ -167,6 +208,13 @@ impl Atom {
                             ignore_case = ignore_case && !chars::is_upper_case(c);
                         }
                         CaseMatching::Respect => (),
+                    }
+                    match normalization {
+                        #[cfg(feature = "unicode-normalization")]
+                        Normalization::Smart => {
+                            normalize = normalize && chars::normalize(c) == c;
+                        }
+                        Normalization::Never => (),
                     }
                     c
                 });
@@ -182,13 +230,14 @@ impl Atom {
             needle,
             negative: false,
             ignore_case,
+            normalize,
         }
     }
 
     /// Parse a pattern atom from a string. Some special trailing and leading
     /// characters can be used to control the atom kind. See [`AtomKind`] for
     /// details.
-    pub fn parse(raw: &str, case: CaseMatching) -> Atom {
+    pub fn parse(raw: &str, case: CaseMatching, normalize: Normalization) -> Atom {
         let mut atom = raw;
         let invert = match atom.as_bytes() {
             [b'!', ..] => {
@@ -239,7 +288,7 @@ impl Atom {
             kind = AtomKind::Substring
         }
 
-        let mut pattern = Atom::new_inner(atom, case, kind, true, append_dollar);
+        let mut pattern = Atom::new_inner(atom, case, normalize, kind, true, append_dollar);
         pattern.negative = invert;
         pattern
     }
@@ -252,6 +301,7 @@ impl Atom {
     /// each pattern atom.
     pub fn score(&self, haystack: Utf32Str<'_>, matcher: &mut Matcher) -> Option<u16> {
         matcher.config.ignore_case = self.ignore_case;
+        matcher.config.normalize = self.normalize;
         let pattern_score = match self.kind {
             AtomKind::Exact => matcher.exact_match(haystack, self.needle.slice(..)),
             AtomKind::Fuzzy => matcher.fuzzy_match(haystack, self.needle.slice(..)),
@@ -285,6 +335,7 @@ impl Atom {
         indices: &mut Vec<u32>,
     ) -> Option<u16> {
         matcher.config.ignore_case = self.ignore_case;
+        matcher.config.normalize = self.normalize;
         if self.negative {
             let pattern_score = match self.kind {
                 AtomKind::Exact => matcher.exact_match(haystack, self.needle.slice(..)),
@@ -371,10 +422,15 @@ impl Pattern {
     /// can be escaped with `\`). Otherwise no parsing is performed (so $, !, '
     /// and ^ don't receive special treatment). If you want to match the entire
     /// pattern as a single needle use a single [`Atom`] instead.
-    pub fn new(pattern: &str, case_matching: CaseMatching, kind: AtomKind) -> Pattern {
+    pub fn new(
+        pattern: &str,
+        case_matching: CaseMatching,
+        normalize: Normalization,
+        kind: AtomKind,
+    ) -> Pattern {
         let atoms = pattern_atoms(pattern)
             .filter_map(|pat| {
-                let pat = Atom::new(pat, case_matching, kind, true);
+                let pat = Atom::new(pat, case_matching, normalize, kind, true);
                 (!pat.needle.is_empty()).then_some(pat)
             })
             .collect();
@@ -384,10 +440,10 @@ impl Pattern {
     /// can be escaped with `\`). And $, !, ' and ^ at word boundaries will
     /// cause different matching behaviour (see [`AtomKind`]). These can be
     /// escaped with backslash.
-    pub fn parse(pattern: &str, case_matching: CaseMatching) -> Pattern {
+    pub fn parse(pattern: &str, case_matching: CaseMatching, normalize: Normalization) -> Pattern {
         let atoms = pattern_atoms(pattern)
             .filter_map(|pat| {
-                let pat = Atom::parse(pat, case_matching);
+                let pat = Atom::parse(pat, case_matching, normalize);
                 (!pat.needle.is_empty()).then_some(pat)
             })
             .collect();
@@ -477,10 +533,15 @@ impl Pattern {
     /// Refreshes this pattern by reparsing it from a string. This is mostly
     /// equivalent to just constructing a new pattern using [`Pattern::parse`]
     /// but is slightly more efficient by reusing some allocations
-    pub fn reparse(&mut self, pattern: &str, case_matching: CaseMatching) {
+    pub fn reparse(
+        &mut self,
+        pattern: &str,
+        case_matching: CaseMatching,
+        normalize: Normalization,
+    ) {
         self.atoms.clear();
         let atoms = pattern_atoms(pattern).filter_map(|atom| {
-            let atom = Atom::parse(atom, case_matching);
+            let atom = Atom::parse(atom, case_matching, normalize);
             if atom.needle.is_empty() {
                 return None;
             }

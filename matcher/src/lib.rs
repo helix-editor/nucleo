@@ -16,12 +16,12 @@ can contain special characters to control what kind of match is performed (see
 
 ```
 # use nucleo_matcher::{Matcher, Config};
-# use nucleo_matcher::pattern::{Pattern, CaseMatching};
+# use nucleo_matcher::pattern::{Pattern, Normalization, CaseMatching};
 let paths = ["foo/bar", "bar/foo", "foobar"];
 let mut matcher = Matcher::new(Config::DEFAULT.match_paths());
-let matches = Pattern::parse("foo bar", CaseMatching::Ignore).match_list(paths, &mut matcher);
+let matches = Pattern::parse("foo bar", CaseMatching::Ignore, Normalization::Smart).match_list(paths, &mut matcher);
 assert_eq!(matches, vec![("foo/bar", 168), ("bar/foo", 168), ("foobar", 140)]);
-let matches = Pattern::parse("^foo bar", CaseMatching::Ignore).match_list(paths, &mut matcher);
+let matches = Pattern::parse("^foo bar", CaseMatching::Ignore, Normalization::Smart).match_list(paths, &mut matcher);
 assert_eq!(matches, vec![("foo/bar", 168), ("foobar", 140)]);
 ```
 
@@ -30,13 +30,13 @@ If the pattern should be matched literally (without this special parsing)
 
 ```
 # use nucleo_matcher::{Matcher, Config};
-# use nucleo_matcher::pattern::{Pattern, CaseMatching, AtomKind};
+# use nucleo_matcher::pattern::{Pattern, CaseMatching, AtomKind, Normalization};
 let paths = ["foo/bar", "bar/foo", "foobar"];
 let mut matcher = Matcher::new(Config::DEFAULT.match_paths());
-let matches = Pattern::new("foo bar", CaseMatching::Ignore, AtomKind::Fuzzy).match_list(paths, &mut matcher);
+let matches = Pattern::new("foo bar", CaseMatching::Ignore, Normalization::Smart, AtomKind::Fuzzy).match_list(paths, &mut matcher);
 assert_eq!(matches, vec![("foo/bar", 168), ("bar/foo", 168), ("foobar", 140)]);
 let paths = ["^foo/bar", "bar/^foo", "foobar"];
-let matches = Pattern::new("^foo bar", CaseMatching::Ignore, AtomKind::Fuzzy).match_list(paths, &mut matcher);
+let matches = Pattern::new("^foo bar", CaseMatching::Ignore, Normalization::Smart, AtomKind::Fuzzy).match_list(paths, &mut matcher);
 assert_eq!(matches, vec![("^foo/bar", 188), ("bar/^foo", 188)]);
 ```
 
@@ -44,10 +44,10 @@ If word segmentation is also not desired, a single `Atom` can be constructed dir
 
 ```
 # use nucleo_matcher::{Matcher, Config};
-# use nucleo_matcher::pattern::{Pattern, Atom, CaseMatching, AtomKind};
+# use nucleo_matcher::pattern::{Pattern, Atom, CaseMatching, Normalization, AtomKind};
 let paths = ["foobar", "foo bar"];
 let mut matcher = Matcher::new(Config::DEFAULT);
-let matches = Atom::new("foo bar", CaseMatching::Ignore, AtomKind::Fuzzy, false).match_list(paths, &mut matcher);
+let matches = Atom::new("foo bar", CaseMatching::Ignore, Normalization::Smart, AtomKind::Fuzzy, false).match_list(paths, &mut matcher);
 assert_eq!(matches, vec![("foo bar", 192)]);
 ```
 

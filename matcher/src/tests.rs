@@ -1,4 +1,5 @@
 use crate::chars::Char;
+use crate::pattern::{CaseMatching, Normalization, Pattern};
 use crate::score::{
     BONUS_BOUNDARY, BONUS_CAMEL123, BONUS_CONSECUTIVE, BONUS_FIRST_CHAR_MULTIPLIER, BONUS_NON_WORD,
     MAX_PREFIX_BONUS, PENALTY_GAP_EXTENSION, PENALTY_GAP_START, SCORE_MATCH,
@@ -577,12 +578,13 @@ fn test_optimal() {
             // the second f instead of the third yielding a higher score
             // (despite using the same scoring function!)
             (
-                "xf foo",
+                "xf.foo",
                 "xfoo",
                 &[0, 3, 4, 5],
-                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 3)
+                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER
                     - PENALTY_GAP_START
-                    - PENALTY_GAP_EXTENSION,
+                    - PENALTY_GAP_EXTENSION
+                    + BONUS_BOUNDARY * 3,
             ),
             (
                 "xf fo",
@@ -697,4 +699,19 @@ fn test_single_char_needle() {
             BONUS_FIRST_CHAR_MULTIPLIER * BONUS_CAMEL123,
         )],
     );
+}
+
+#[test]
+fn umlaut() {
+    let paths = ["be", "bë"];
+    let mut matcher = Matcher::new(Config::DEFAULT);
+    let matches = Pattern::parse("ë", CaseMatching::Ignore, Normalization::Smart)
+        .match_list(paths, &mut matcher);
+    assert_eq!(matches.len(), 1);
+    let matches = Pattern::parse("e", CaseMatching::Ignore, Normalization::Never)
+        .match_list(paths, &mut matcher);
+    assert_eq!(matches.len(), 1);
+    let matches = Pattern::parse("e", CaseMatching::Ignore, Normalization::Smart)
+        .match_list(paths, &mut matcher);
+    assert_eq!(matches.len(), 2);
 }
