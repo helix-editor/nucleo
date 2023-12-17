@@ -668,3 +668,33 @@ fn test_prefer_prefix() {
         ],
     );
 }
+
+#[test]
+fn test_single_char_needle() {
+    assert_matches(
+        &[FuzzyOptimal],
+        false,
+        false,
+        false,
+        false,
+        &[(
+            "foO",
+            "o",
+            &[2],
+            BONUS_FIRST_CHAR_MULTIPLIER * BONUS_CAMEL123,
+        )],
+    );
+    assert_matches(
+        &[FuzzyOptimal],
+        false,
+        false,
+        false,
+        false,
+        &[(
+            "föÖ",
+            "ö",
+            &[2],
+            BONUS_FIRST_CHAR_MULTIPLIER * BONUS_CAMEL123,
+        )],
+    );
+}
