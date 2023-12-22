@@ -471,25 +471,30 @@ fn test_normalize() {
 #[test]
 fn test_unicode() {
     assert_matches(
+        &[FuzzyGreedy, FuzzyOptimal, Substring],
+        true,
+        false,
+        false,
+        false,
+        &[(
+            "你好世界",
+            "你好",
+            &[0, 1],
+            BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 1),
+        )],
+    );
+    assert_matches(
         &[FuzzyGreedy, FuzzyOptimal],
         true,
         false,
         false,
         false,
-        &[
-            (
-                "你好世界",
-                "你好",
-                &[0, 1],
-                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 1),
-            ),
-            (
-                "你好世界",
-                "你世",
-                &[0, 2],
-                BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER - PENALTY_GAP_START,
-            ),
-        ],
+        &[(
+            "你好世界",
+            "你世",
+            &[0, 2],
+            BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER - PENALTY_GAP_START,
+        )],
     );
     assert_not_matches(
         false,

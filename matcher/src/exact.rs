@@ -245,7 +245,7 @@ impl Matcher {
             prev_class = char_class;
             let score = bonus * BONUS_FIRST_CHAR_MULTIPLIER + SCORE_MATCH;
             if score > max_score
-                && haystack[i + 1..]
+                && haystack[start + i + 1..start + i + needle.len()]
                     .iter()
                     .map(|c| c.normalize(&self.config))
                     .eq(needle[1..].iter().copied())

@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.3.1] - 2023-12-22
+
+## Bugfixes
+
+* fix Unicode substring matcher expecting an exact match (rejecting trailing characters)
+
 # [0.3.0] - 2023-12-22
 
 ## **Breaking Changes**
