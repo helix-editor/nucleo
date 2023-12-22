@@ -258,6 +258,9 @@ impl Matcher {
                 }
             }
         }
+        if max_score == 0 {
+            return None;
+        }
 
         let score = self.calculate_score::<INDICES, _, _>(
             haystack,

@@ -490,7 +490,13 @@ fn test_unicode() {
                 BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER - PENALTY_GAP_START,
             ),
         ],
-    )
+    );
+    assert_not_matches(
+        false,
+        false,
+        false,
+        &[("Flibbertigibbet / イタズラっ子たち", "lying")],
+    );
 }
 
 #[test]

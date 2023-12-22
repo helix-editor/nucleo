@@ -496,15 +496,8 @@ impl Matcher {
                         .substring_match_1_non_ascii::<INDICES>(haystack, needle, start, indices);
                     return Some(res);
                 }
-                let (start, end) = self.prefilter_non_ascii(haystack, needle_, false)?;
-                self.fuzzy_match_optimal::<INDICES, char, char>(
-                    haystack,
-                    needle,
-                    start,
-                    start + 1,
-                    end,
-                    indices,
-                )
+                let (start, _) = self.prefilter_non_ascii(haystack, needle_, false)?;
+                self.substring_match_non_ascii::<INDICES, _>(haystack, needle, start, indices)
             }
         }
     }

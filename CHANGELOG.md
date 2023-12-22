@@ -8,6 +8,7 @@
 
 ## Bugfixes
 
+* avoid incorrect matches when searching for ASCII needles in a Unicode haystack
 * correctly handle Unicode normalization when there are normalizable characters in the pattern, for example characters with umlauts
 * when the needle is composed of a single char, return the score and index
   of the best position instead of always returning the first matched character
