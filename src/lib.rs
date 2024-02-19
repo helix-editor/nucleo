@@ -119,6 +119,7 @@ pub struct Status {
 
 /// A snapshot represent the results of a [`Nucleo`] worker after
 /// finishing a [`tick`](Nucleo::tick).
+#[derive(Clone)]
 pub struct Snapshot<T: Sync + Send + 'static> {
     item_count: u32,
     matches: Vec<Match>,
