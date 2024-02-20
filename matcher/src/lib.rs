@@ -2,6 +2,11 @@
 `nucleo_matcher` is a low level crate that contains the matcher implementation
 used by the high level `nucleo` crate.
 
+**NOTE**: If you are building an fzf-like interactive fuzzy finder that is
+meant to match a reasonably large number of items (> 100) using the high level
+`nucleo` crate is highly recommended. Using `nucleo-matcher` directly in you ui
+loop will be very slow. Implementing this logic yourself is very complex.
+
 The matcher is hightly optimized and can significantly outperform `fzf` and
 `skim` (the `fuzzy-matcher` crate). However some of these optimizations require
 a slightly less convenient API. Be sure to carefully read the documentation of
