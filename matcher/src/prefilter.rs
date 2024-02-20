@@ -78,6 +78,9 @@ impl Matcher {
             .position(|c| c.normalize(&self.config) == needle_char)?;
         let needle_char = needle.last();
         if only_greedy {
+            if haystack.len() - start < needle.len() {
+                return None;
+            }
             Some((start, start + 1))
         } else {
             let end = haystack.len()

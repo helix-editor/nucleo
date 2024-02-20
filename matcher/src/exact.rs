@@ -236,7 +236,8 @@ impl Matcher {
             .checked_sub(1)
             .map(|i| haystack[i].char_class(&self.config))
             .unwrap_or(self.config.initial_char_class);
-        for (i, &c) in haystack[start..].iter().enumerate() {
+        let end = haystack.len() - needle.len();
+        for (i, &c) in haystack[start..end].iter().enumerate() {
             let (c, char_class) = c.char_class_and_normalize(&self.config);
             if c != needle[0] {
                 continue;
@@ -265,8 +266,8 @@ impl Matcher {
         let score = self.calculate_score::<INDICES, _, _>(
             haystack,
             needle,
-            max_pos,
-            max_pos + needle.len(),
+            start + max_pos,
+            start + max_pos + needle.len(),
             indices,
         );
         Some(score)

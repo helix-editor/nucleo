@@ -84,20 +84,17 @@ fn assert_matches(
     }
 }
 
-pub fn assert_not_matches(
+fn assert_not_matches_with(
     normalize: bool,
     case_sensitive: bool,
-    path: bool,
+    algorithm: &[Algorithm],
     cases: &[(&str, &str)],
 ) {
-    let mut config = Config {
+    let config = Config {
         normalize,
         ignore_case: !case_sensitive,
         ..Config::DEFAULT
     };
-    if path {
-        config.set_match_paths();
-    }
     let mut matcher = Matcher::new(config);
     let mut needle_buf = Vec::new();
     let mut haystack_buf = Vec::new();
@@ -110,29 +107,30 @@ pub fn assert_not_matches(
         let needle = Utf32Str::new(&needle, &mut needle_buf);
         let haystack = Utf32Str::new(haystack, &mut haystack_buf);
 
-        let res = matcher.fuzzy_match(haystack, needle);
-        assert_eq!(res, None, "{needle:?} should not match {haystack:?}");
-        let res = matcher.fuzzy_match_greedy(haystack, needle);
-        assert_eq!(
-            res, None,
-            "{needle:?} should not match {haystack:?} (greedy)"
-        );
-        let res = matcher.substring_match(haystack, needle);
-        assert_eq!(
-            res, None,
-            "{needle:?} should not match {haystack:?} (substring)"
-        );
-        let res = matcher.prefix_match(haystack, needle);
-        assert_eq!(
-            res, None,
-            "{needle:?} should not match {haystack:?} (prefix)"
-        );
-        let res = matcher.postfix_match(haystack, needle);
-        assert_eq!(
-            res, None,
-            "{needle:?} should not match {haystack:?} (postfix)"
-        );
+        for algo in algorithm {
+            let res = match algo {
+                FuzzyOptimal => matcher.fuzzy_match(haystack, needle),
+                FuzzyGreedy => matcher.fuzzy_match_greedy(haystack, needle),
+                Substring => matcher.substring_match(haystack, needle),
+                Prefix => matcher.prefix_match(haystack, needle),
+                Postfix => matcher.postfix_match(haystack, needle),
+                Exact => matcher.exact_match(haystack, needle),
+            };
+            assert_eq!(
+                res, None,
+                "{needle:?} should not match {haystack:?} {algo:?}"
+            );
+        }
     }
+}
+
+pub fn assert_not_matches(normalize: bool, case_sensitive: bool, cases: &[(&str, &str)]) {
+    assert_not_matches_with(
+        normalize,
+        case_sensitive,
+        &[FuzzyOptimal, FuzzyGreedy, Substring, Prefix, Postfix, Exact],
+        cases,
+    )
 }
 
 const BONUS_BOUNDARY_WHITE: u16 = Config::DEFAULT.bonus_boundary_white;
@@ -377,6 +375,15 @@ fn test_substring() {
             ),
         ],
     );
+    assert_not_matches_with(
+        true,
+        false,
+        &[Prefix, Substring, Postfix, Exact],
+        &[(
+            "At the Road’s End - Seeming - SOL: A Self-Banishment Ritual",
+            "adi",
+        )],
+    )
 }
 
 #[test]
@@ -476,12 +483,20 @@ fn test_unicode() {
         false,
         false,
         false,
-        &[(
-            "你好世界",
-            "你好",
-            &[0, 1],
-            BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 1),
-        )],
+        &[
+            (
+                "你好世界",
+                "你好",
+                &[0, 1],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 1),
+            ),
+            (
+                " 你好世界",
+                "你好",
+                &[1, 2],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 1),
+            ),
+        ],
     );
     assert_matches(
         &[FuzzyGreedy, FuzzyOptimal],
@@ -497,7 +512,6 @@ fn test_unicode() {
         )],
     );
     assert_not_matches(
-        false,
         false,
         false,
         &[("Flibbertigibbet / イタズラっ子たち", "lying")],
@@ -614,7 +628,6 @@ fn test_reject() {
     assert_not_matches(
         true,
         false,
-        false,
         &[
             ("你好界", "abc"),
             ("你好界", "a"),
@@ -627,7 +640,6 @@ fn test_reject() {
     assert_not_matches(
         true,
         true,
-        false,
         &[
             ("你好界", "abc"),
             ("abc", "你"),
@@ -643,14 +655,13 @@ fn test_reject() {
     assert_not_matches(
         false,
         true,
-        false,
         &[
             ("Só Danço Samba", "sod"),
             ("Só Danço Samba", "soc"),
             ("Só Danç", "So"),
         ],
     );
-    assert_not_matches(false, false, false, &[("ۂۂfoۂۂ", "foo")]);
+    assert_not_matches(false, false, &[("ۂۂfoۂۂ", "foo")]);
 }
 
 #[test]
