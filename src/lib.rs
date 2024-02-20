@@ -169,7 +169,7 @@ impl<T: Sync + Send + 'static> Snapshot<T> {
     pub fn matched_items(
         &self,
         range: impl RangeBounds<u32>,
-    ) -> impl Iterator<Item = Item<'_, T>> + ExactSizeIterator + DoubleEndedIterator + '_ {
+    ) -> impl ExactSizeIterator<Item = Item<'_, T>> + DoubleEndedIterator + '_ {
         // TODO: use TAIT
         let start = match range.start_bound() {
             Bound::Included(&start) => start as usize,
