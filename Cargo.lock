@@ -152,7 +152,7 @@ dependencies = [
 
 [[package]]
 name = "nucleo"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "nucleo-matcher",
  "parking_lot",
@@ -161,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "nucleo-matcher"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "cov-mark",
  "memchr",

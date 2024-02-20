@@ -1,10 +1,15 @@
 # Changelog
 
-# [0.3.1] - 2023-12-22
+# [0.4.0] - 2023-12-22
+
+## Added
+
+* `active_injectors()` to retrieve the number of injectors that can potentially add new items to the matcher in the future.
 
 ## Bugfixes
 
 * fix Unicode substring matcher expecting an exact match (rejecting trailing characters)
+* fix crashes and false positives in unicode substring matcher
 
 # [0.3.0] - 2023-12-22
 
