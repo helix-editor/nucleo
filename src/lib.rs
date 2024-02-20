@@ -22,7 +22,7 @@ should not be far away).
 
 While the high level `nucleo` crate also works well (and is also used in helix),
 there are still additional features that will be added in the future. The high
-level crate also need better documentation and will likely see a few API
+level crate also need better documentation and will likely see a few minor API
 changes in the future.
 
 */
@@ -42,6 +42,9 @@ mod boxcar;
 mod par_sort;
 pub mod pattern;
 mod worker;
+
+#[cfg(test)]
+mod tests;
 
 /// A match candidate stored in a [`Nucleo`] worker.
 pub struct Item<'a, T> {
@@ -219,6 +222,33 @@ impl<T: Sync + Send + 'static> Snapshot<T> {
     }
 }
 
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum State {
+    Init,
+    /// items have been cleared but snapshot and items are still outdated
+    Cleared,
+    /// items are fresh
+    Fresh,
+}
+
+impl State {
+    fn matcher_item_refs(self) -> usize {
+        match self {
+            State::Cleared => 1,
+            State::Init | State::Fresh => 2,
+        }
+    }
+
+    fn canceled(self) -> bool {
+        self != State::Fresh
+    }
+
+    fn cleared(self) -> bool {
+        self != State::Fresh
+    }
+}
+
 /// A high level matcher worker that quickly computes matches in a background
 /// threadpool.
 pub struct Nucleo<T: Sync + Send + 'static> {
@@ -228,7 +258,7 @@ pub struct Nucleo<T: Sync + Send + 'static> {
     should_notify: Arc<AtomicBool>,
     worker: Arc<Mutex<Worker<T>>>,
     pool: ThreadPool,
-    cleared: bool,
+    state: State,
     items: Arc<boxcar::Vec<T>>,
     notify: Arc<(dyn Fn() + Sync + Send)>,
     snapshot: Snapshot<T>,
@@ -273,9 +303,16 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
                 items: worker.items.clone(),
             },
             worker: Arc::new(Mutex::new(worker)),
-            cleared: true,
+            state: State::Init,
             notify,
         }
+    }
+
+    /// Returns the total number of active injectors
+    pub fn active_injectors(&self) -> usize {
+        Arc::strong_count(&self.items)
+            - self.state.matcher_item_refs()
+            - (Arc::ptr_eq(&self.snapshot.items, &self.items)) as usize
     }
 
     /// Returns a snapshot of the current matcher state.
@@ -305,7 +342,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
     pub fn restart(&mut self, clear_snapshot: bool) {
         self.canceled.store(true, Ordering::Relaxed);
         self.items = Arc::new(boxcar::Vec::with_capacity(1024, self.items.columns()));
-        self.cleared = true;
+        self.state = State::Cleared;
         if clear_snapshot {
             self.snapshot.clear(self.items.clone());
         }
@@ -322,12 +359,12 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
     pub fn tick(&mut self, timeout: u64) -> Status {
         self.should_notify.store(false, atomic::Ordering::Relaxed);
         let status = self.pattern.status();
-        let canceled = status != pattern::Status::Unchanged || self.cleared;
+        let canceled = status != pattern::Status::Unchanged || self.state.canceled();
         let mut res = self.tick_inner(timeout, canceled, status);
         if !canceled {
             return res;
         }
-        self.cleared = false;
+        self.state = State::Fresh;
         let status2 = self.tick_inner(timeout, false, pattern::Status::Unchanged);
         res.changed |= status2.changed;
         res.running = status2.running;
@@ -355,7 +392,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         let running = canceled || self.items.count() > inner.item_count();
         if inner.running {
             inner.running = false;
-            if !inner.was_canceled && !self.cleared {
+            if !inner.was_canceled && !self.state.canceled() {
                 self.snapshot.update(&inner)
             }
         }
@@ -365,7 +402,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
             if !canceled {
                 self.should_notify.store(true, atomic::Ordering::Release);
             }
-            let cleared = self.cleared;
+            let cleared = self.state.cleared();
             if cleared {
                 inner.items = self.items.clone();
             }
