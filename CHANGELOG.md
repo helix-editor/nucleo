@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.4.1] - 2024-3-11
+
+## Bugfixes
+
+* crash when restarting picker with fast active stream
+
 # [0.4.0] - 2024-2-20
 
 ## Added
