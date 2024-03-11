@@ -158,6 +158,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
 
         if cleared {
             self.last_snapshot = 0;
+            self.in_flight.clear();
             self.matches.clear();
         }
 
