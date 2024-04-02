@@ -73,7 +73,7 @@ impl<T> Clone for Injector<T> {
 impl<T> Injector<T> {
     /// Appends an element to the list of matched items.
     /// This function is lock-free and wait-free.
-    pub fn push(&self, value: T, fill_columns: impl FnOnce(&mut [Utf32String])) -> u32 {
+    pub fn push(&self, value: T, fill_columns: impl FnOnce(&T, &mut [Utf32String])) -> u32 {
         let idx = self.items.push(value, fill_columns);
         (self.notify)();
         idx

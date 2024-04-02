@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.5.0] - 2024-4-2
+
+## **Breaking Changes**
+
+* `Injector::push` now passes a reference to the push value to the closure generating the columns
+
+
 # [0.4.1] - 2024-3-11
 
 ## Bugfixes

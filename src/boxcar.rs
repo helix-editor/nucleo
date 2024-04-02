@@ -137,7 +137,7 @@ impl<T> Vec<T> {
     }
 
     /// Appends an element to the back of the vector.
-    pub fn push(&self, value: T, fill_columns: impl FnOnce(&mut [Utf32String])) -> u32 {
+    pub fn push(&self, value: T, fill_columns: impl FnOnce(&T, &mut [Utf32String])) -> u32 {
         let index = self.inflight.fetch_add(1, Ordering::Release);
         // the inflight counter is a `u64` to catch overflows of the vector'scapacity
         let index: u32 = index.try_into().expect("overflowed maximum capacity");
@@ -170,11 +170,11 @@ impl<T> Vec<T> {
             //
             // 2. any thread trying to `get` this entry will see `active == false`,
             // and will not try to access it
-            (*entry).slot.get().write(MaybeUninit::new(value));
             for col in Entry::matcher_cols_raw(entry, self.columns) {
                 col.get().write(MaybeUninit::new(Utf32String::default()))
             }
-            fill_columns(Entry::matcher_cols_mut(entry, self.columns));
+            fill_columns(&value, Entry::matcher_cols_mut(entry, self.columns));
+            (*entry).slot.get().write(MaybeUninit::new(value));
             // let other threads know that this entry is active
             (*entry).active.store(true, Ordering::Release);
         }

@@ -2,7 +2,7 @@
 name = "nucleo"
 description = "plug and play high performance fuzzy matcher"
 authors = ["Pascal Kuthe <pascalkuthe@pm.me>"]
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 license = "MPL-2.0"
 repository = "https://github.com/helix-editor/nucleo"
