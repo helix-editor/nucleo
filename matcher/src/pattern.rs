@@ -396,7 +396,8 @@ impl Atom {
         items
     }
 
-    /// Same as `match_list` expect that it returns the index in addition to the match tuple
+    /// Same as `match_list` expect that it returns the index appended to the tuple
+    /// Return tuple is (Match, score, index)
     pub fn match_list_with_index<T: AsRef<str>>(
         &self,
         items: impl IntoIterator<Item = T>,
@@ -499,8 +500,9 @@ impl Pattern {
         items.sort_by_key(|(_, score)| Reverse(*score));
         items
     }
-    ///
-    /// Same as `match_list` expect that it returns the index in addition to the match tuple
+
+    /// Same as `match_list` expect that it returns the index appended to the tuple
+    /// Return tuple is (Match, score, index)
     pub fn match_list_with_index<T: AsRef<str>>(
         &self,
         items: impl IntoIterator<Item = T>,
