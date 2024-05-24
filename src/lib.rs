@@ -10,7 +10,7 @@ results live while the user is typing while never blocking the main UI thread
 (beyond a user provided timeout). Nucleo also supports fully concurrent lock-free
 (and wait-free) streaming of input items.
 
-The [`Nucleo`] struct servers as the main API entrypoint for this crate.
+The [`Nucleo`] struct serves as the main API entrypoint for this crate.
 
 # Status
 
