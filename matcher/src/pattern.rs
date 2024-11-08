@@ -419,8 +419,8 @@ pub struct Pattern {
 
 impl Pattern {
     /// Creates a pattern where each word is matched individually (whitespaces
-    /// can be escaped with `\`). Otherwise no parsing is performed (so $, !, '
-    /// and ^ don't receive special treatment). If you want to match the entire
+    /// can be escaped with `\`). Otherwise no parsing is performed (so `$`, `!`,
+    /// `'` and `^` don't receive special treatment). If you want to match the entire
     /// pattern as a single needle use a single [`Atom`] instead.
     pub fn new(
         pattern: &str,
@@ -437,7 +437,7 @@ impl Pattern {
         Pattern { atoms }
     }
     /// Creates a pattern where each word is matched individually (whitespaces
-    /// can be escaped with `\`). And $, !, ' and ^ at word boundaries will
+    /// can be escaped with `\`). And `$`, `!`, `'` and `^` at word boundaries will
     /// cause different matching behaviour (see [`AtomKind`]). These can be
     /// escaped with backslash.
     pub fn parse(pattern: &str, case_matching: CaseMatching, normalize: Normalization) -> Pattern {
@@ -479,8 +479,8 @@ impl Pattern {
     }
 
     /// Matches this pattern against `haystack` (using the allocation and configuration
-    /// from `matcher`) and calculates a ranking score. See the [`Matcher`].
-    /// Documentation for more details.
+    /// from `matcher`) and calculates a ranking score. See the [`Matcher`]
+    /// documentation for more details.
     ///
     /// *Note:*  The `ignore_case` setting is overwritten to match the casing of
     /// each pattern atom.
@@ -497,7 +497,7 @@ impl Pattern {
 
     /// Matches this pattern against `haystack` (using the allocation and
     /// configuration from `matcher`), calculates a ranking score and the match
-    /// indices. See the [`Matcher`]. Documentation for more
+    /// indices. See the [`Matcher`] documentation for more
     /// details.
     ///
     /// *Note:*  The `ignore_case` setting is overwritten to match the casing of
