@@ -91,7 +91,7 @@ impl<T> Injector<T> {
     /// # Safety
     ///
     /// Item at `index` must be initialized. That means you must have observed
-    /// `push` returning this value or `get` retunring `Some` for this value.
+    /// `push` returning this value or `get` returning `Some` for this value.
     /// Just because a later index is initialized doesn't mean that this index
     /// is initialized
     pub unsafe fn get_unchecked(&self, index: u32) -> Item<'_, T> {
@@ -204,7 +204,7 @@ impl<T: Sync + Send + 'static> Snapshot<T> {
     /// Returns `None` if the given `index` is not initialized. This function
     /// is only guarteed to return `Some` for item indices that can be found in
     /// the `matches` of this struct. Both smaller and larger indices may return
-    /// `None`
+    /// `None`.
     #[inline]
     pub fn get_item(&self, index: u32) -> Option<Item<'_, T>> {
         self.items.get(index)
@@ -288,7 +288,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
     ///
     /// Nucleo can match items with multiple orthogonal properties. `columns`
     /// indicates how many matching columns each item (and the pattern) has. The
-    /// number of columns can not be changed after construction.
+    /// number of columns cannot be changed after construction.
     pub fn new(
         config: Config,
         notify: Arc<(dyn Fn() + Sync + Send)>,
@@ -337,8 +337,8 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
     /// Restart the the item stream. Removes all items and disconnects all
     /// previously created injectors from this instance. If `clear_snapshot`
     /// is `true` then all items and matched are removed from the [`Snapshot`]
-    /// (crate::Snapshot) immediately. Otherwise the snapshot will keep the
-    /// current matches until the matcher has run again.
+    /// immediately. Otherwise the snapshot will keep the current matches until
+    /// the matcher has run again.
     ///
     /// # Note
     ///
@@ -354,6 +354,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         }
     }
 
+    /// Update the internal configuration.
     pub fn update_config(&mut self, config: Config) {
         self.worker.lock().update_config(config)
     }

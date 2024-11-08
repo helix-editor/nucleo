@@ -191,12 +191,13 @@ impl Matcher {
         self.fuzzy_matcher_impl::<false>(haystack, needle, &mut Vec::new())
     }
 
-    /// Find the fuzzy match with the higehest score in the `haystack` and
+    /// Find the fuzzy match with the highest score in the `haystack` and
     /// compute its indices.
     ///
     /// This functions has `O(mn)` time complexity for short inputs. To
-    /// avoid slowdowns it automatically falls back to [greedy matching]
-    /// (crate::Matcher::fuzzy_match_greedy) for large needles and haystacks
+    /// avoid slowdowns it automatically falls back to
+    /// [greedy matching](crate::Matcher::fuzzy_match_greedy) for large needles
+    /// and haystacks
     ///
     /// See the [matcher documentation](crate::Matcher) for more details.
     pub fn fuzzy_indices(
