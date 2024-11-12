@@ -473,7 +473,7 @@ const fn generate_table<const LEN: usize>(sparse_data: &[(char, char)]) -> [char
     let mut i = 0u32;
     let mut j = 0;
     while i < table.len() as u32 {
-        let key = unsafe { transmute(start + i) };
+        let key = unsafe { transmute::<u32, char>(start + i) };
         if sparse_data[j].0 == key {
             table[i as usize] = DATA1[j].1;
             j += 1;

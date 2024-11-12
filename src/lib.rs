@@ -160,7 +160,7 @@ impl<T: Sync + Send + 'static> Snapshot<T> {
         self.matches.len() as u32
     }
 
-    /// Returns an iteror over the items that correspond to a subrange of
+    /// Returns an iterator over the items that correspond to a subrange of
     /// all the matches in this snapshot.
     ///
     /// # Panics
@@ -190,7 +190,7 @@ impl<T: Sync + Send + 'static> Snapshot<T> {
     ///
     /// # Safety
     ///
-    /// Item at `index` must be initialized. That means you must have observed
+    /// Item at `index` must be initialized. That means you must have observed a
     /// match with the corresponding index in this exact snapshot. Observing
     /// a higher index is not enough as item indices can be non-contigously
     /// initialized
@@ -203,22 +203,28 @@ impl<T: Sync + Send + 'static> Snapshot<T> {
     ///
     /// Returns `None` if the given `index` is not initialized. This function
     /// is only guarteed to return `Some` for item indices that can be found in
-    /// the `matches` of this struct. Both small and larger indices may returns
+    /// the `matches` of this struct. Both smaller and larger indices may return
     /// `None`
     #[inline]
     pub fn get_item(&self, index: u32) -> Option<Item<'_, T>> {
         self.items.get(index)
     }
 
-    /// Returns a reference to the nth match.
+    /// Return the matches corresponding to this snapshot.
+    #[inline]
+    pub fn matches(&self) -> &[Match] {
+        &self.matches
+    }
+
+    /// A convenience function to return the [`Item`] corresponding to the
+    /// `n`th match.
     ///
-    /// Returns `None` if the given `index` is not initialized. This function
-    /// is only guarteed to return `Some` for item indices that can be found in
-    /// the `matches` of this struct. Both small and larger indices may returns
-    /// `None`
+    /// Returns `None` if `n` is greater than or equal to the match count.
     #[inline]
     pub fn get_matched_item(&self, n: u32) -> Option<Item<'_, T>> {
-        self.get_item(self.matches.get(n as usize)?.idx)
+        // SAFETY: A match index is guaranteed to corresponding to a valid global index in this
+        // snapshot.
+        unsafe { Some(self.get_item_unchecked(self.matches.get(n as usize)?.idx)) }
     }
 }
 
