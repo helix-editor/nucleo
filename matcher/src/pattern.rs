@@ -395,6 +395,29 @@ impl Atom {
         items.sort_by_key(|(_, score)| Reverse(*score));
         items
     }
+
+    /// Same as `match_list` expect that it returns the index appended to the tuple
+    /// Return tuple is (Match, score, index)
+    pub fn match_list_with_index<T: AsRef<str>>(
+        &self,
+        items: impl IntoIterator<Item = T>,
+        matcher: &mut Matcher,
+    ) -> Vec<(T, u16, usize)> {
+        if self.needle.is_empty() {
+            return items.into_iter().map(|item| (item, 0, 0)).collect();
+        }
+        let mut buf = Vec::new();
+        let mut items: Vec<_> = items
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, item)| {
+                self.score(Utf32Str::new(item.as_ref(), &mut buf), matcher)
+                    .map(|score| (item, score, index))
+            })
+            .collect();
+        items.sort_by_key(|(_, score, _)| Reverse(*score));
+        items
+    }
 }
 
 fn pattern_atoms(pattern: &str) -> impl Iterator<Item = &str> + '_ {
@@ -475,6 +498,29 @@ impl Pattern {
             })
             .collect();
         items.sort_by_key(|(_, score)| Reverse(*score));
+        items
+    }
+
+    /// Same as `match_list` expect that it returns the index appended to the tuple
+    /// Return tuple is (Match, score, index)
+    pub fn match_list_with_index<T: AsRef<str>>(
+        &self,
+        items: impl IntoIterator<Item = T>,
+        matcher: &mut Matcher,
+    ) -> Vec<(T, u32, usize)> {
+        if self.atoms.is_empty() {
+            return items.into_iter().map(|item| (item, 0, 0)).collect();
+        }
+        let mut buf = Vec::new();
+        let mut items: Vec<_> = items
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, item)| {
+                self.score(Utf32Str::new(item.as_ref(), &mut buf), matcher)
+                    .map(|score| (item, score, index))
+            })
+            .collect();
+        items.sort_by_key(|(_, score, _)| Reverse(*score));
         items
     }
 
