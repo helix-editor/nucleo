@@ -191,7 +191,7 @@ impl Matcher {
         self.fuzzy_matcher_impl::<false>(haystack, needle, &mut Vec::new())
     }
 
-    /// Find the fuzzy match with the higehest score in the `haystack` and
+    /// Find the fuzzy match with the highest score in the `haystack` and
     /// compute its indices.
     ///
     /// This functions has `O(mn)` time complexity for short inputs. To
