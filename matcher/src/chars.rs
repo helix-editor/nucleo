@@ -189,10 +189,14 @@ pub(crate) enum CharClass {
 pub fn graphemes(text: &str) -> impl Iterator<Item = char> + '_ {
     #[cfg(feature = "unicode-segmentation")]
     let res = text.graphemes(true).map(|grapheme| {
-        grapheme
-            .chars()
-            .next()
-            .expect("graphemes must be non-empty")
+        if grapheme == "\r\n" {
+            '\n'
+        } else {
+            grapheme
+                .chars()
+                .next()
+                .expect("graphemes must be non-empty")
+        }
     });
     #[cfg(not(feature = "unicode-segmentation"))]
     let res = text.chars();

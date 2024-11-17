@@ -42,7 +42,7 @@ pub enum Utf32Str<'a> {
 impl<'a> Utf32Str<'a> {
     /// Convenience method to construct a `Utf32Str` from a normal utf8 str
     pub fn new(str: &'a str, buf: &'a mut Vec<char>) -> Self {
-        if str.is_ascii() {
+        if is_non_cr_ascii(str) {
             Utf32Str::Ascii(str.as_bytes())
         } else {
             buf.clear();
@@ -307,7 +307,7 @@ impl Utf32String {
 impl From<&str> for Utf32String {
     #[inline]
     fn from(value: &str) -> Self {
-        if value.is_ascii() {
+        if is_non_cr_ascii(value) {
             Self::Ascii(value.to_owned().into_boxed_str())
         } else {
             Self::Unicode(chars::graphemes(value).collect())
@@ -317,7 +317,7 @@ impl From<&str> for Utf32String {
 
 impl From<Box<str>> for Utf32String {
     fn from(value: Box<str>) -> Self {
-        if value.is_ascii() {
+        if is_non_cr_ascii(&value) {
             Self::Ascii(value)
         } else {
             Self::Unicode(chars::graphemes(&value).collect())
@@ -352,4 +352,19 @@ impl fmt::Display for Utf32String {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.slice(..))
     }
+}
+
+/// Returns true if `input` consists only of ascii characters which are not the carriage return
+/// `\r`.
+///
+/// Code is lifted straight from standard library, which is optimized for generated assembly.
+const fn is_non_cr_ascii(input: &str) -> bool {
+    let mut bytes = input.as_bytes();
+    while let [rest @ .., last] = bytes {
+        if !last.is_ascii() || *last == b'\r' {
+            break;
+        }
+        bytes = rest;
+    }
+    bytes.is_empty()
 }
