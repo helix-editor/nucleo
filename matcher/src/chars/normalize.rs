@@ -1,526 +1,972 @@
-use std::mem::transmute;
-
-const DATA1: [(char, char); 277] = [
-    ('\u{00C0}', 'A'), //  WITH GRAVE, LATIN CAPITAL LETTER
-    ('\u{00C1}', 'A'), //  WITH ACUTE, LATIN CAPITAL LETTER
-    ('\u{00C2}', 'A'), //  WITH CIRCUMFLEX, LATIN CAPITAL LETTER
-    ('\u{00C3}', 'A'), //  WITH TILDE, LATIN CAPITAL LETTER
-    ('\u{00C4}', 'A'), //  WITH DIAERESIS, LATIN CAPITAL LETTER
-    ('\u{00C5}', 'A'), //  WITH RING ABOVE, LATIN CAPITAL LETTER
-    ('\u{00C7}', 'C'), //  WITH CEDILLA, LATIN CAPITAL LETTER
-    ('\u{00C8}', 'E'), //  WITH GRAVE, LATIN CAPITAL LETTER
-    ('\u{00C9}', 'E'), //  WITH ACUTE, LATIN CAPITAL LETTER
-    ('\u{00CA}', 'E'), //  WITH CIRCUMFLEX, LATIN CAPITAL LETTER
-    ('\u{00CB}', 'E'), //  WITH DIAERESIS, LATIN CAPITAL LETTER
-    ('\u{00CC}', 'I'), //  WITH GRAVE, LATIN CAPITAL LETTER
-    ('\u{00CD}', 'I'), //  WITH ACUTE, LATIN CAPITAL LETTER
-    ('\u{00CE}', 'I'), //  WITH CIRCUMFLEX, LATIN CAPITAL LETTER
-    ('\u{00CF}', 'I'), //  WITH DIAERESIS, LATIN CAPITAL LETTER
-    ('\u{00D1}', 'N'), //  WITH TILDE, LATIN CAPITAL LETTER
-    ('\u{00D2}', 'O'), //  WITH GRAVE, LATIN CAPITAL LETTER
-    ('\u{00D3}', 'O'), //  WITH ACUTE, LATIN CAPITAL LETTER
-    ('\u{00D4}', 'O'), //  WITH CIRCUMFLEX, LATIN CAPITAL LETTER
-    ('\u{00D5}', 'O'), //  WITH TILDE, LATIN CAPITAL LETTER
-    ('\u{00D6}', 'O'), //  WITH DIAERESIS, LATIN CAPITAL LETTER
-    ('\u{00D8}', 'O'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{00D9}', 'U'), //  WITH GRAVE, LATIN CAPITAL LETTER
-    ('\u{00DA}', 'U'), //  WITH ACUTE, LATIN CAPITAL LETTER
-    ('\u{00DB}', 'U'), //  WITH CIRCUMFLEX, LATIN CAPITAL LETTER
-    ('\u{00DC}', 'U'), //  WITH DIAERESIS, LATIN CAPITAL LETTER
-    ('\u{00DD}', 'Y'), //  WITH ACUTE, LATIN CAPITAL LETTER
-    ('\u{00DF}', 's'), // , LATIN SMALL LETTER SHARP
-    ('\u{00E0}', 'a'), //  WITH GRAVE, LATIN SMALL LETTER
-    ('\u{00E1}', 'a'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{00E2}', 'a'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{00E3}', 'a'), //  WITH TILDE, LATIN SMALL LETTER
-    ('\u{00E4}', 'a'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{00E5}', 'a'), //  WITH RING ABOVE, LATIN SMALL LETTER
-    ('\u{00E7}', 'c'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{00E8}', 'e'), //  WITH GRAVE, LATIN SMALL LETTER
-    ('\u{00E9}', 'e'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{00EA}', 'e'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{00EB}', 'e'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{00EC}', 'i'), //  WITH GRAVE, LATIN SMALL LETTER
-    ('\u{00ED}', 'i'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{00EE}', 'i'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{00EF}', 'i'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{00F1}', 'n'), //  WITH TILDE, LATIN SMALL LETTER
-    ('\u{00F2}', 'o'), //  WITH GRAVE, LATIN SMALL LETTER
-    ('\u{00F3}', 'o'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{00F4}', 'o'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{00F5}', 'o'), //  WITH TILDE, LATIN SMALL LETTER
-    ('\u{00F6}', 'o'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{00F8}', 'o'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{00F9}', 'u'), //  WITH GRAVE, LATIN SMALL LETTER
-    ('\u{00FA}', 'u'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{00FB}', 'u'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{00FC}', 'u'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{00FD}', 'y'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{00FF}', 'y'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{0101}', 'a'), //  WITH MACRON, LATIN SMALL LETTER
-    ('\u{0103}', 'a'), //  WITH BREVE, LATIN SMALL LETTER
-    ('\u{0105}', 'a'), //  WITH OGONEK, LATIN SMALL LETTER
-    ('\u{0107}', 'c'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{0109}', 'c'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{010B}', 'c'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{010D}', 'c'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{010F}', 'd'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{0111}', 'd'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{0113}', 'e'), //  WITH MACRON, LATIN SMALL LETTER
-    ('\u{0115}', 'e'), //  WITH BREVE, LATIN SMALL LETTER
-    ('\u{0117}', 'e'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{0119}', 'e'), //  WITH OGONEK, LATIN SMALL LETTER
-    ('\u{011B}', 'e'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{011D}', 'g'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{011F}', 'g'), //  WITH BREVE, LATIN SMALL LETTER
-    ('\u{0121}', 'g'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{0123}', 'g'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{0125}', 'h'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{0127}', 'h'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{0129}', 'i'), //  WITH TILDE, LATIN SMALL LETTER
-    ('\u{012B}', 'i'), //  WITH MACRON, LATIN SMALL LETTER
-    ('\u{012D}', 'i'), //  WITH BREVE, LATIN SMALL LETTER
-    ('\u{012F}', 'i'), //  WITH OGONEK, LATIN SMALL LETTER
-    ('\u{0130}', 'I'), //  WITH DOT ABOVE, LATIN CAPITAL LETTER
-    ('\u{0131}', 'i'), // , LATIN SMALL LETTER DOTLESS
-    ('\u{0135}', 'j'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{0137}', 'k'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{013A}', 'l'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{013C}', 'l'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{013E}', 'l'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{0140}', 'l'), //  WITH MIDDLE DOT, LATIN SMALL LETTER
-    ('\u{0142}', 'l'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{0144}', 'n'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{0146}', 'n'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{0148}', 'n'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{014D}', 'o'), //  WITH MACRON, LATIN SMALL LETTER
-    ('\u{014F}', 'o'), //  WITH BREVE, LATIN SMALL LETTER
-    ('\u{0151}', 'o'), //  WITH DOUBLE ACUTE, LATIN SMALL LETTER
-    ('\u{0155}', 'r'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{0157}', 'r'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{0159}', 'r'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{015B}', 's'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{015D}', 's'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{015F}', 's'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{0161}', 's'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{0163}', 't'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{0165}', 't'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{0167}', 't'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{0169}', 'u'), //  WITH TILDE, LATIN SMALL LETTER
-    ('\u{016B}', 'u'), //  WITH MACRON, LATIN SMALL LETTER
-    ('\u{016D}', 'u'), //  WITH BREVE, LATIN SMALL LETTER
-    ('\u{016F}', 'u'), //  WITH RING ABOVE, LATIN SMALL LETTER
-    ('\u{0171}', 'u'), //  WITH DOUBLE ACUTE, LATIN SMALL LETTER
-    ('\u{0173}', 'u'), //  WITH OGONEK, LATIN SMALL LETTER
-    ('\u{0175}', 'w'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{0177}', 'y'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER
-    ('\u{0178}', 'Y'), //  WITH DIAERESIS, LATIN CAPITAL LETTER
-    ('\u{017A}', 'z'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{017C}', 'z'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{017E}', 'z'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{017F}', 's'), // , LATIN SMALL LETTER LONG
-    ('\u{0180}', 'b'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{0181}', 'B'), //  WITH HOOK, LATIN CAPITAL LETTER
-    ('\u{0183}', 'b'), //  WITH TOPBAR, LATIN SMALL LETTER
-    ('\u{0186}', 'O'), // , LATIN CAPITAL LETTER OPEN
-    ('\u{0188}', 'c'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0189}', 'D'), // , LATIN CAPITAL LETTER AFRICAN
-    ('\u{018A}', 'D'), //  WITH HOOK, LATIN CAPITAL LETTER
-    ('\u{018C}', 'd'), //  WITH TOPBAR, LATIN SMALL LETTER
-    ('\u{018E}', 'E'), // , LATIN CAPITAL LETTER REVERSED
-    ('\u{0190}', 'E'), // , LATIN CAPITAL LETTER OPEN
-    ('\u{0192}', 'f'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0193}', 'G'), //  WITH HOOK, LATIN CAPITAL LETTER
-    ('\u{0197}', 'I'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{0199}', 'k'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{019A}', 'l'), //  WITH BAR, LATIN SMALL LETTER
-    ('\u{019C}', 'M'), // , LATIN CAPITAL LETTER TURNED
-    ('\u{019D}', 'N'), //  WITH LEFT HOOK, LATIN CAPITAL LETTER
-    ('\u{019E}', 'n'), //  WITH LONG RIGHT LEG, LATIN SMALL LETTER
-    ('\u{019F}', 'O'), //  WITH MIDDLE TILDE, LATIN CAPITAL LETTER
-    ('\u{01A1}', 'o'), //  WITH HORN, LATIN SMALL LETTER
-    ('\u{01A5}', 'p'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{01AB}', 't'), //  WITH PALATAL HOOK, LATIN SMALL LETTER
-    ('\u{01AD}', 't'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{01AE}', 'T'), //  WITH RETROFLEX HOOK, LATIN CAPITAL LETTER
-    ('\u{01B0}', 'u'), //  WITH HORN, LATIN SMALL LETTER
-    ('\u{01B2}', 'V'), //  WITH HOOK, LATIN CAPITAL LETTER
-    ('\u{01B4}', 'y'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{01B6}', 'z'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{01CE}', 'a'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{01D0}', 'i'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{01D2}', 'o'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{01D4}', 'u'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{01DD}', 'e'), // , LATIN SMALL LETTER TURNED
-    ('\u{01E5}', 'g'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{01E7}', 'g'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{01E9}', 'k'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{01EB}', 'o'), //  WITH OGONEK, LATIN SMALL LETTER
-    ('\u{01F0}', 'j'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{01F5}', 'g'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{01F9}', 'n'), //  WITH GRAVE, LATIN SMALL LETTER
-    ('\u{0201}', 'a'), //  WITH DOUBLE GRAVE, LATIN SMALL LETTER
-    ('\u{0203}', 'a'), //  WITH INVERTED BREVE, LATIN SMALL LETTER
-    ('\u{0205}', 'e'), //  WITH DOUBLE GRAVE, LATIN SMALL LETTER
-    ('\u{0207}', 'e'), //  WITH INVERTED BREVE, LATIN SMALL LETTER
-    ('\u{0209}', 'i'), //  WITH DOUBLE GRAVE, LATIN SMALL LETTER
-    ('\u{020B}', 'i'), //  WITH INVERTED BREVE, LATIN SMALL LETTER
-    ('\u{020D}', 'o'), //  WITH DOUBLE GRAVE, LATIN SMALL LETTER
-    ('\u{020F}', 'o'), //  WITH INVERTED BREVE, LATIN SMALL LETTER
-    ('\u{0211}', 'r'), //  WITH DOUBLE GRAVE, LATIN SMALL LETTER
-    ('\u{0213}', 'r'), //  WITH INVERTED BREVE, LATIN SMALL LETTER
-    ('\u{0215}', 'u'), //  WITH DOUBLE GRAVE, LATIN SMALL LETTER
-    ('\u{0217}', 'u'), //  WITH INVERTED BREVE, LATIN SMALL LETTER
-    ('\u{0219}', 's'), //  WITH COMMA BELOW, LATIN SMALL LETTER
-    ('\u{021B}', 't'), //  WITH COMMA BELOW, LATIN SMALL LETTER
-    ('\u{021F}', 'h'), //  WITH CARON, LATIN SMALL LETTER
-    ('\u{0220}', 'N'), //  WITH LONG RIGHT LEG, LATIN CAPITAL LETTER
-    ('\u{0221}', 'd'), //  WITH CURL, LATIN SMALL LETTER
-    ('\u{0225}', 'z'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0227}', 'a'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{0229}', 'e'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{022F}', 'o'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{0233}', 'y'), //  WITH MACRON, LATIN SMALL LETTER
-    ('\u{0234}', 'l'), //  WITH CURL, LATIN SMALL LETTER
-    ('\u{0235}', 'n'), //  WITH CURL, LATIN SMALL LETTER
-    ('\u{0236}', 't'), //  WITH CURL, LATIN SMALL LETTER
-    ('\u{0237}', 'j'), // , LATIN SMALL LETTER DOTLESS
-    ('\u{023A}', 'A'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{023B}', 'C'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{023C}', 'c'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{023D}', 'L'), //  WITH BAR, LATIN CAPITAL LETTER
-    ('\u{023E}', 'T'), //  WITH DIAGONAL STROKE, LATIN CAPITAL LETTER
-    ('\u{023F}', 's'), //  WITH SWASH TAIL, LATIN SMALL LETTER
-    ('\u{0240}', 'z'), //  WITH SWASH TAIL, LATIN SMALL LETTER
-    ('\u{0243}', 'B'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{0244}', 'U'), //  BAR, LATIN CAPITAL LETTER
-    ('\u{0245}', 'V'), // , LATIN CAPITAL LETTER TURNED
-    ('\u{0246}', 'E'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{0247}', 'e'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{0248}', 'J'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{0249}', 'j'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{024A}', 'Q'), //  WITH HOOK TAIL, LATIN CAPITAL LETTER SMALL
-    ('\u{024B}', 'q'), //  WITH HOOK TAIL, LATIN SMALL LETTER
-    ('\u{024C}', 'R'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{024D}', 'r'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{024E}', 'Y'), //  WITH STROKE, LATIN CAPITAL LETTER
-    ('\u{024F}', 'y'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{0250}', 'a'), // , LATIN SMALL LETTER TURNED
-    ('\u{0251}', 'a'), // , latin small letter script
-    ('\u{0253}', 'b'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0254}', 'o'), // , LATIN SMALL LETTER OPEN
-    ('\u{0255}', 'c'), //  WITH CURL, LATIN SMALL LETTER
-    ('\u{0256}', 'd'), //  WITH TAIL, LATIN SMALL LETTER
-    ('\u{0257}', 'd'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0258}', 'e'), // , LATIN SMALL LETTER REVERSED
-    ('\u{025B}', 'e'), // , LATIN SMALL LETTER OPEN
-    ('\u{025C}', 'e'), // , LATIN SMALL LETTER REVERSED OPEN
-    ('\u{025D}', 'e'), //  WITH HOOK, LATIN SMALL LETTER REVERSED OPEN
-    ('\u{025E}', 'e'), // , LATIN SMALL LETTER CLOSED REVERSED OPEN
-    ('\u{025F}', 'j'), //  WITH STROKE, LATIN SMALL LETTER DOTLESS
-    ('\u{0260}', 'g'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0261}', 'g'), // , LATIN SMALL LETTER SCRIPT
-    ('\u{0262}', 'G'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{0265}', 'h'), // , LATIN SMALL LETTER TURNED
-    ('\u{0266}', 'h'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0268}', 'i'), //  WITH STROKE, LATIN SMALL LETTER
-    ('\u{026A}', 'I'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{026B}', 'l'), //  WITH MIDDLE TILDE, LATIN SMALL LETTER
-    ('\u{026C}', 'l'), //  WITH BELT, LATIN SMALL LETTER
-    ('\u{026D}', 'l'), //  WITH RETROFLEX HOOK, LATIN SMALL LETTER
-    ('\u{026F}', 'm'), // , LATIN SMALL LETTER TURNED
-    ('\u{0270}', 'm'), //  WITH LONG LEG, LATIN SMALL LETTER TURNED
-    ('\u{0271}', 'm'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0272}', 'n'), //  WITH LEFT HOOK, LATIN SMALL LETTER
-    ('\u{0273}', 'n'), //  WITH RETROFLEX HOOK, LATIN SMALL LETTER
-    ('\u{0274}', 'N'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{0275}', 'o'), // , LATIN SMALL LETTER BARRED
-    ('\u{0279}', 'r'), // , LATIN SMALL LETTER TURNED
-    ('\u{027A}', 'r'), //  WITH LONG LEG, LATIN SMALL LETTER TURNED
-    ('\u{027B}', 'r'), //  WITH HOOK, LATIN SMALL LETTER TURNED
-    ('\u{027C}', 'r'), //  WITH LONG LEG, LATIN SMALL LETTER
-    ('\u{027D}', 'r'), //  WITH TAIL, LATIN SMALL LETTER
-    ('\u{027E}', 'r'), //  WITH FISHHOOK, LATIN SMALL LETTER
-    ('\u{027F}', 'r'), //  WITH FISHHOOK, LATIN SMALL LETTER REVERSED
-    ('\u{0280}', 'R'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{0281}', 'R'), // , LATIN LETTER SMALL CAPITAL INVERTED
-    ('\u{0282}', 's'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{0287}', 't'), // , LATIN SMALL LETTER TURNED
-    ('\u{0288}', 't'), //  WITH RETROFLEX HOOK, LATIN SMALL LETTER
-    ('\u{0289}', 'u'), //  BAR, LATIN SMALL LETTER
-    ('\u{028B}', 'v'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{028C}', 'v'), // , LATIN SMALL LETTER TURNED
-    ('\u{028D}', 'w'), // , LATIN SMALL LETTER TURNED
-    ('\u{028E}', 'y'), // , LATIN SMALL LETTER TURNED
-    ('\u{028F}', 'Y'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{0290}', 'z'), //  WITH RETROFLEX HOOK, LATIN SMALL LETTER
-    ('\u{0291}', 'z'), //  WITH CURL, LATIN SMALL LETTER
-    ('\u{0297}', 'c'), // , LATIN LETTER STRETCHED
-    ('\u{0299}', 'B'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{029A}', 'e'), // , LATIN SMALL LETTER CLOSED OPEN
-    ('\u{029B}', 'G'), //  WITH HOOK, LATIN LETTER SMALL CAPITAL
-    ('\u{029C}', 'H'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{029D}', 'j'), //  WITH CROSSED-TAIL, LATIN SMALL LETTER
-    ('\u{029E}', 'k'), // , LATIN SMALL LETTER TURNED
-    ('\u{029F}', 'L'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{02A0}', 'q'), //  WITH HOOK, LATIN SMALL LETTER
-    ('\u{02AE}', 'h'), //  WITH FISHHOOK, LATIN SMALL LETTER TURNED
-    ('\u{0363}', 'a'), // , COMBINING LATIN SMALL LETTER
-    ('\u{0364}', 'e'), // , COMBINING LATIN SMALL LETTER
-    ('\u{0365}', 'i'), // , COMBINING LATIN SMALL LETTER
-    ('\u{0366}', 'o'), // , COMBINING LATIN SMALL LETTER
-    ('\u{0367}', 'u'), // , COMBINING LATIN SMALL LETTER
-    ('\u{0368}', 'c'), // , COMBINING LATIN SMALL LETTER
-    ('\u{0369}', 'd'), // , COMBINING LATIN SMALL LETTER
-    ('\u{036A}', 'h'), // , COMBINING LATIN SMALL LETTER
-    ('\u{036B}', 'm'), // , COMBINING LATIN SMALL LETTER
-    ('\u{036C}', 'r'), // , COMBINING LATIN SMALL LETTER
-    ('\u{036D}', 't'), // , COMBINING LATIN SMALL LETTER
-    ('\u{036E}', 'v'), // , COMBINING LATIN SMALL LETTER
-    ('\u{036F}', 'x'), // , COMBINING LATIN SMALL LETTER
-];
-
-const DATA2: [(char, char); 167] = [
-    ('\u{1D00}', 'A'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D03}', 'B'), // , LATIN LETTER SMALL CAPITAL BARRED
-    ('\u{1D04}', 'C'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D05}', 'D'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D07}', 'E'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D08}', 'e'), // , LATIN SMALL LETTER TURNED OPEN
-    ('\u{1D09}', 'i'), // , LATIN SMALL LETTER TURNED
-    ('\u{1D0A}', 'J'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D0B}', 'K'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D0C}', 'L'), //  WITH STROKE, LATIN LETTER SMALL CAPITAL
-    ('\u{1D0D}', 'M'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D0E}', 'N'), // , LATIN LETTER SMALL CAPITAL REVERSED
-    ('\u{1D0F}', 'O'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D10}', 'O'), // , LATIN LETTER SMALL CAPITAL OPEN
-    ('\u{1D11}', 'o'), // , LATIN SMALL LETTER SIDEWAYS
-    ('\u{1D12}', 'o'), // , LATIN SMALL LETTER SIDEWAYS OPEN
-    ('\u{1D13}', 'o'), //  WITH STROKE, LATIN SMALL LETTER SIDEWAYS
-    ('\u{1D16}', 'o'), // , LATIN SMALL LETTER TOP HALF
-    ('\u{1D17}', 'o'), // , LATIN SMALL LETTER BOTTOM HALF
-    ('\u{1D18}', 'P'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D19}', 'R'), // , LATIN LETTER SMALL CAPITAL REVERSED
-    ('\u{1D1A}', 'R'), // , LATIN LETTER SMALL CAPITAL TURNED
-    ('\u{1D1B}', 'T'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D1C}', 'U'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D1D}', 'u'), // , LATIN SMALL LETTER SIDEWAYS
-    ('\u{1D1E}', 'u'), // , LATIN SMALL LETTER SIDEWAYS DIAERESIZED
-    ('\u{1D1F}', 'm'), // , LATIN SMALL LETTER SIDEWAYS TURNED
-    ('\u{1D20}', 'V'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D21}', 'W'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D22}', 'Z'), // , LATIN LETTER SMALL CAPITAL
-    ('\u{1D62}', 'i'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{1D63}', 'r'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{1D64}', 'u'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{1D65}', 'v'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{1E01}', 'a'), //  WITH RING BELOW, LATIN SMALL LETTER
-    ('\u{1E03}', 'b'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E05}', 'b'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E07}', 'b'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E0B}', 'd'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E0D}', 'd'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E0F}', 'd'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E11}', 'd'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{1E13}', 'd'), //  WITH CIRCUMFLEX BELOW, LATIN SMALL LETTER
-    ('\u{1E19}', 'e'), //  WITH CIRCUMFLEX BELOW, LATIN SMALL LETTER
-    ('\u{1E1B}', 'e'), //  WITH TILDE BELOW, LATIN SMALL LETTER
-    ('\u{1E1F}', 'f'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E21}', 'g'), //  WITH MACRON, LATIN SMALL LETTER
-    ('\u{1E23}', 'h'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E25}', 'h'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E27}', 'h'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{1E29}', 'h'), //  WITH CEDILLA, LATIN SMALL LETTER
-    ('\u{1E2B}', 'h'), //  WITH BREVE BELOW, LATIN SMALL LETTER
-    ('\u{1E2D}', 'i'), //  WITH TILDE BELOW, LATIN SMALL LETTER
-    ('\u{1E31}', 'k'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{1E33}', 'k'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E35}', 'k'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E37}', 'l'), //  WITH DOT BELOW, LATIN SMALL LETTER    ('\u{1E3B}', 'l'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E3D}', 'l'), //  WITH CIRCUMFLEX BELOW, LATIN SMALL LETTER
-    ('\u{1E3F}', 'm'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{1E41}', 'm'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E43}', 'm'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E45}', 'n'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E47}', 'n'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E49}', 'n'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E4B}', 'n'), //  WITH CIRCUMFLEX BELOW, LATIN SMALL LETTER
-    ('\u{1E55}', 'p'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{1E57}', 'p'), //  WITH DOT ABOVE, LATIN SMALL LETTER    ('\u{1E59}', 'r'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E5B}', 'r'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E5F}', 'r'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E61}', 's'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E63}', 's'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E6B}', 't'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E6D}', 't'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E6F}', 't'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E71}', 't'), //  WITH CIRCUMFLEX BELOW, LATIN SMALL LETTER
-    ('\u{1E73}', 'u'), //  WITH DIAERESIS BELOW, LATIN SMALL LETTER
-    ('\u{1E75}', 'u'), //  WITH TILDE BELOW, LATIN SMALL LETTER    ('\u{1E77}', 'u'), //  WITH CIRCUMFLEX BELOW, LATIN SMALL LETTER
-    ('\u{1E7D}', 'v'), //  WITH TILDE, LATIN SMALL LETTER
-    ('\u{1E7F}', 'v'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E81}', 'w'), //  WITH GRAVE, LATIN SMALL LETTER
-    ('\u{1E83}', 'w'), //  WITH ACUTE, LATIN SMALL LETTER
-    ('\u{1E85}', 'w'), //  WITH DIAERESIS, LATIN SMALL LETTER    ('\u{1E87}', 'w'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E89}', 'w'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E8B}', 'x'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E8D}', 'x'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{1E8F}', 'y'), //  WITH DOT ABOVE, LATIN SMALL LETTER
-    ('\u{1E91}', 'z'), //  WITH CIRCUMFLEX, LATIN SMALL LETTER    ('\u{1E93}', 'z'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1E95}', 'z'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E96}', 'h'), //  WITH LINE BELOW, LATIN SMALL LETTER
-    ('\u{1E97}', 't'), //  WITH DIAERESIS, LATIN SMALL LETTER
-    ('\u{1E98}', 'w'), //  WITH RING ABOVE, LATIN SMALL LETTER
-    ('\u{1E99}', 'y'), //  WITH RING ABOVE, LATIN SMALL LETTER
-    ('\u{1E9A}', 'a'), //  WITH RIGHT HALF RING, LATIN SMALL LETTER
-    ('\u{1E9B}', 's'), //  WITH DOT ABOVE, LATIN SMALL LETTER LONG
-    ('\u{1EA1}', 'a'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1EA3}', 'a'), //  WITH HOOK ABOVE, LATIN SMALL LETTER
-    ('\u{1EB9}', 'e'), //  WITH DOT BELOW, LATIN SMALL LETTER    ('\u{1EBB}', 'e'), //  WITH HOOK ABOVE, LATIN SMALL LETTER
-    ('\u{1EBD}', 'e'), //  WITH TILDE, LATIN SMALL LETTER
-    ('\u{1EC9}', 'i'), //  WITH HOOK ABOVE, LATIN SMALL LETTER
-    ('\u{1ECB}', 'i'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1ECD}', 'o'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1ECF}', 'o'), //  WITH HOOK ABOVE, LATIN SMALL LETTER
-    ('\u{1EE5}', 'u'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1EE7}', 'u'), //  WITH HOOK ABOVE, LATIN SMALL LETTER
-    ('\u{1EF3}', 'y'), //  WITH GRAVE, LATIN SMALL LETTER
-    ('\u{1EF5}', 'y'), //  WITH DOT BELOW, LATIN SMALL LETTER
-    ('\u{1EF7}', 'y'), //  WITH HOOK ABOVE, LATIN SMALL LETTER    ('\u{1EF9}', 'y'), //  WITH TILDE, LATIN SMALL LETTER
-    ('\u{1ea4}', 'A'),
-    ('\u{1ea5}', 'a'),
-    ('\u{1ea6}', 'A'),
-    ('\u{1ea7}', 'a'),
-    ('\u{1ea8}', 'A'),
-    ('\u{1ea9}', 'a'),
-    ('\u{1eaa}', 'A'),
-    ('\u{1eab}', 'a'),
-    ('\u{1eac}', 'A'),
-    ('\u{1ead}', 'a'),
-    ('\u{1eae}', 'A'),
-    ('\u{1eaf}', 'a'),
-    ('\u{1eb0}', 'A'),
-    ('\u{1eb1}', 'a'),
-    ('\u{1eb2}', 'A'),
-    ('\u{1eb3}', 'a'),
-    ('\u{1eb4}', 'A'),
-    ('\u{1eb5}', 'a'),
-    ('\u{1eb6}', 'A'),
-    ('\u{1eb7}', 'a'),
-    ('\u{1ebe}', 'E'),
-    ('\u{1ebf}', 'e'),
-    ('\u{1ec0}', 'E'),
-    ('\u{1ec1}', 'e'),
-    ('\u{1ec2}', 'E'),
-    ('\u{1ec3}', 'e'),
-    ('\u{1ec4}', 'E'),
-    ('\u{1ec5}', 'e'),
-    ('\u{1ec6}', 'E'),
-    ('\u{1ec7}', 'e'),
-    ('\u{1ed0}', 'O'),
-    ('\u{1ed1}', 'o'),
-    ('\u{1ed2}', 'O'),
-    ('\u{1ed3}', 'o'),
-    ('\u{1ed4}', 'O'),
-    ('\u{1ed5}', 'o'),
-    ('\u{1ed6}', 'O'),
-    ('\u{1ed7}', 'o'),
-    ('\u{1ed8}', 'O'),
-    ('\u{1ed9}', 'o'),
-    ('\u{1eda}', 'O'),
-    ('\u{1edb}', 'o'),
-    ('\u{1edc}', 'O'),
-    ('\u{1edd}', 'o'),
-    ('\u{1ede}', 'O'),
-    ('\u{1edf}', 'o'),
-    ('\u{1ee0}', 'O'),
-    ('\u{1ee1}', 'o'),
-    ('\u{1ee2}', 'O'),
-    ('\u{1ee3}', 'o'),
-    ('\u{1ee8}', 'U'),
-    ('\u{1ee9}', 'u'),
-    ('\u{1eea}', 'U'),
-    ('\u{1eeb}', 'u'),
-    ('\u{1eec}', 'U'),
-    ('\u{1eed}', 'u'),
-    ('\u{1eee}', 'U'),
-    ('\u{1eef}', 'u'),
-    ('\u{1ef0}', 'U'),
-    ('\u{1ef1}', 'u'),
-];
-
-const DATA3: [(char, char); 9] = [
-    ('\u{2071}', 'i'), // , SUPERSCRIPT LATIN SMALL LETTER
-    ('\u{2095}', 'h'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{2096}', 'k'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{2097}', 'l'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{2098}', 'm'), // , LATIN SUBSCRIPT SMALL LETTER0x2099: 'n', // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{209A}', 'p'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{209B}', 's'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{209C}', 't'), // , LATIN SUBSCRIPT SMALL LETTER
-    ('\u{2184}', 'c'), // , LATIN SMALL LETTER REVERSED
-];
-
-const DATA1_START: u32 = DATA1[0].0 as u32;
-const DATA1_END: u32 = DATA1[DATA1.len() - 1].0 as u32 + 1;
-const LEN1: usize = (DATA1_END - DATA1_START) as usize;
-static TABLE1: [char; LEN1] = generate_table(&DATA1);
-
-const fn generate_table<const LEN: usize>(sparse_data: &[(char, char)]) -> [char; LEN] {
-    let mut table: [char; LEN] = ['\0'; LEN];
-    let start = sparse_data[0].0 as u32;
-    let mut i = 0u32;
-    let mut j = 0;
-    while i < table.len() as u32 {
-        let key = unsafe { transmute::<u32, char>(start + i) };
-        if sparse_data[j].0 == key {
-            table[i as usize] = DATA1[j].1;
-            j += 1;
-        } else {
-            //identity
-            table[i as usize] = key;
-        }
-        i += 1;
-    }
-    table
-}
-const DATA2_START: u32 = DATA2[0].0 as u32;
-const DATA2_END: u32 = DATA2[DATA2.len() - 1].0 as u32 + 1;
-const LEN2: usize = (DATA2_END - DATA2_START) as usize;
-static TABLE2: [char; LEN2] = generate_table(&DATA2);
-
-const DATA3_START: u32 = DATA3[0].0 as u32;
-const DATA3_END: u32 = DATA3[DATA3.len() - 1].0 as u32 + 1;
-const LEN3: usize = (DATA3_END - DATA3_START) as usize;
-static TABLE3: [char; LEN3] = generate_table(&DATA3);
-
-/// Normalizes a unicode character by converting latin characters
-/// which are variants of ASCII characters to their latin equivant.
+/// Normalize a Unicode character by converting Latin characters which are variants
+/// of ASCII characters to their latin equivalent.
+///
+/// Note that this method acts on single `char`s: if you want to perform full normalization, you
+/// should first split on graphemes, and then normalize each grapheme by normalizing the first
+/// `char` in the grapheme.
+///
+/// If a character does not normalize to a single ASCII character, no normalization is performed.
+///
+/// This performs normalization within the following Unicode blocks:
+///
+/// - [Latin-1 Supplement](https://en.wikipedia.org/wiki/Latin-1_Supplement)
+/// - [Latin Extended-A](https://en.wikipedia.org/wiki/Latin_Extended-A)
+/// - [Latin Extended-B](https://en.wikipedia.org/wiki/Latin_Extended-B)
+/// - [Latin Extended Additional](https://en.wikipedia.org/wiki/Latin_Extended_Additional)
+/// - [Superscripts and Subscripts](https://en.wikipedia.org/wiki/Superscripts_and_Subscripts)
+///
+/// If the character does not fall in this block, it is not normalized.
 ///
 /// # Example
-///
-/// ``` rust
+/// ```
 /// # use nucleo_matcher::chars::normalize;
-///
 /// assert_eq!(normalize('ä'), 'a');
+/// assert_eq!(normalize('Æ'), 'Æ');
+/// assert_eq!(normalize('ữ'), 'u');
 /// ```
 pub fn normalize(c: char) -> char {
-    let i = c as u32;
-    if i < DATA1_START || i >= DATA3_END {
+    // outside checked blocks
+    if c < '\u{a0}' || c >= '\u{20A0}' {
         return c;
     }
-    if i < DATA1_END {
-        return TABLE1[(i - DATA1_START) as usize];
+    // Latin-1 Supplement, Extended-A, Extended-B
+    if c <= '\u{29f}' {
+        return LATIN_1AB[c as usize - '\u{a0}' as usize];
     }
-    if i < DATA2_START {
+    // between blocks
+    if c < '\u{1e00}' {
         return c;
     }
-    if i < DATA2_END {
-        return TABLE2[(i - DATA2_START) as usize];
+    // Latin Extended Additional
+    if c <= '\u{1eff}' {
+        return LATIN_EXTENDED_ADDITIONAL[c as usize - '\u{1e00}' as usize];
     }
-    if i < DATA3_START {
+    // between blocks
+    if c < '\u{2070}' {
         return c;
     }
-    TABLE3[(i - DATA3_START) as usize]
+    // Superscripts and subscripts
+    SUPERSCRIPTS_AND_SUBSCRIPTS[c as usize - '\u{2070}' as usize]
+}
+
+/// A char array corresponding to the following contiguous Unicode blocks:
+///
+/// - [Latin-1 Supplement](https://en.wikipedia.org/wiki/Latin-1_Supplement)
+/// - [Latin Extended-A](https://en.wikipedia.org/wiki/Latin_Extended-A)
+/// - [Latin Extended-B](https://en.wikipedia.org/wiki/Latin_Extended-B)
+///
+/// This covers the range `'\u{a0}'..='\u{29f}'`.
+static LATIN_1AB: [char; 512] = [
+    '\u{a0}', // invisible NON BREAKING SPACE
+    '!',      // '¡'; '\u{a1}'
+    '¢',      // '¢'; '\u{a2}'
+    '£',      // '£'; '\u{a3}'
+    '¤',      // '¤'; '\u{a4}'
+    '¥',      // '¥'; '\u{a5}'
+    '¦',      // '¦'; '\u{a6}'
+    '§',      // '§'; '\u{a7}'
+    '¨',      // '¨'; '\u{a8}'
+    '©',      // '©'; '\u{a9}'
+    'a',      // 'ª'; '\u{aa}'
+    '«',      // '«'; '\u{ab}'
+    '¬',      // '¬'; '\u{ac}'
+    '\u{ad}', // invisible SOFT HYPHEN
+    '®',      // '®'; '\u{ae}'
+    '¯',      // '¯'; '\u{af}'
+    '°',      // '°'; '\u{b0}'
+    '±',      // '±'; '\u{b1}'
+    '2',      // '²'; '\u{b2}'
+    '3',      // '³'; '\u{b3}'
+    '´',      // '´'; '\u{b4}'
+    'µ',      // 'µ'; '\u{b5}'
+    '¶',      // '¶'; '\u{b6}'
+    '·',      // '·'; '\u{b7}'
+    '¸',      // '¸'; '\u{b8}'
+    '1',      // '¹'; '\u{b9}'
+    '0',      // 'º'; '\u{ba}'
+    '»',      // '»'; '\u{bb}'
+    '¼',      // '¼'; '\u{bc}'
+    '½',      // '½'; '\u{bd}'
+    '¾',      // '¾'; '\u{be}'
+    '?',      // '¿'; '\u{bf}'
+    'A',      // 'À'; '\u{c0}'
+    'A',      // 'Á'; '\u{c1}'
+    'A',      // 'Â'; '\u{c2}'
+    'A',      // 'Ã'; '\u{c3}'
+    'A',      // 'Ä'; '\u{c4}'
+    'A',      // 'Å'; '\u{c5}'
+    'Æ',      // 'Æ'; '\u{c6}'
+    'C',      // 'Ç'; '\u{c7}'
+    'E',      // 'È'; '\u{c8}'
+    'E',      // 'É'; '\u{c9}'
+    'E',      // 'Ê'; '\u{ca}'
+    'E',      // 'Ë'; '\u{cb}'
+    'I',      // 'Ì'; '\u{cc}'
+    'I',      // 'Í'; '\u{cd}'
+    'I',      // 'Î'; '\u{ce}'
+    'I',      // 'Ï'; '\u{cf}'
+    'D',      // 'Ð'; '\u{d0}'
+    'N',      // 'Ñ'; '\u{d1}'
+    'O',      // 'Ò'; '\u{d2}'
+    'O',      // 'Ó'; '\u{d3}'
+    'O',      // 'Ô'; '\u{d4}'
+    'O',      // 'Õ'; '\u{d5}'
+    'O',      // 'Ö'; '\u{d6}'
+    '×',      // '×'; '\u{d7}'
+    'O',      // 'Ø'; '\u{d8}'
+    'U',      // 'Ù'; '\u{d9}'
+    'U',      // 'Ú'; '\u{da}'
+    'U',      // 'Û'; '\u{db}'
+    'U',      // 'Ü'; '\u{dc}'
+    'Y',      // 'Ý'; '\u{dd}'
+    'Þ',      // 'Þ'; '\u{de}'
+    's',      // 'ß'; '\u{df}'
+    'a',      // 'à'; '\u{e0}'
+    'a',      // 'á'; '\u{e1}'
+    'a',      // 'â'; '\u{e2}'
+    'a',      // 'ã'; '\u{e3}'
+    'a',      // 'ä'; '\u{e4}'
+    'a',      // 'å'; '\u{e5}'
+    'æ',      // 'æ'; '\u{e6}'
+    'c',      // 'ç'; '\u{e7}'
+    'e',      // 'è'; '\u{e8}'
+    'e',      // 'é'; '\u{e9}'
+    'e',      // 'ê'; '\u{ea}'
+    'e',      // 'ë'; '\u{eb}'
+    'i',      // 'ì'; '\u{ec}'
+    'i',      // 'í'; '\u{ed}'
+    'i',      // 'î'; '\u{ee}'
+    'i',      // 'ï'; '\u{ef}'
+    'd',      // 'ð'; '\u{f0}'
+    'n',      // 'ñ'; '\u{f1}'
+    'o',      // 'ò'; '\u{f2}'
+    'o',      // 'ó'; '\u{f3}'
+    'o',      // 'ô'; '\u{f4}'
+    'o',      // 'õ'; '\u{f5}'
+    'o',      // 'ö'; '\u{f6}'
+    '÷',      // '÷'; '\u{f7}'
+    'o',      // 'ø'; '\u{f8}'
+    'u',      // 'ù'; '\u{f9}'
+    'u',      // 'ú'; '\u{fa}'
+    'u',      // 'û'; '\u{fb}'
+    'u',      // 'ü'; '\u{fc}'
+    'y',      // 'ý'; '\u{fd}'
+    'þ',      // 'þ'; '\u{fe}'
+    'y',      // 'ÿ'; '\u{ff}'
+    'A',      // 'Ā'; '\u{100}'
+    'a',      // 'ā'; '\u{101}'
+    'A',      // 'Ă'; '\u{102}'
+    'a',      // 'ă'; '\u{103}'
+    'A',      // 'Ą'; '\u{104}'
+    'a',      // 'ą'; '\u{105}'
+    'C',      // 'Ć'; '\u{106}'
+    'c',      // 'ć'; '\u{107}'
+    'C',      // 'Ĉ'; '\u{108}'
+    'c',      // 'ĉ'; '\u{109}'
+    'C',      // 'Ċ'; '\u{10a}'
+    'c',      // 'ċ'; '\u{10b}'
+    'C',      // 'Č'; '\u{10c}'
+    'c',      // 'č'; '\u{10d}'
+    'D',      // 'Ď'; '\u{10e}'
+    'd',      // 'ď'; '\u{10f}'
+    'D',      // 'Đ'; '\u{110}'
+    'd',      // 'đ'; '\u{111}'
+    'E',      // 'Ē'; '\u{112}'
+    'e',      // 'ē'; '\u{113}'
+    'E',      // 'Ĕ'; '\u{114}'
+    'e',      // 'ĕ'; '\u{115}'
+    'E',      // 'Ė'; '\u{116}'
+    'e',      // 'ė'; '\u{117}'
+    'E',      // 'Ę'; '\u{118}'
+    'e',      // 'ę'; '\u{119}'
+    'E',      // 'Ě'; '\u{11a}'
+    'e',      // 'ě'; '\u{11b}'
+    'G',      // 'Ĝ'; '\u{11c}'
+    'g',      // 'ĝ'; '\u{11d}'
+    'G',      // 'Ğ'; '\u{11e}'
+    'g',      // 'ğ'; '\u{11f}'
+    'G',      // 'Ġ'; '\u{120}'
+    'g',      // 'ġ'; '\u{121}'
+    'G',      // 'Ģ'; '\u{122}'
+    'g',      // 'ģ'; '\u{123}'
+    'H',      // 'Ĥ'; '\u{124}'
+    'h',      // 'ĥ'; '\u{125}'
+    'H',      // 'Ħ'; '\u{126}'
+    'h',      // 'ħ'; '\u{127}'
+    'I',      // 'Ĩ'; '\u{128}'
+    'i',      // 'ĩ'; '\u{129}'
+    'I',      // 'Ī'; '\u{12a}'
+    'i',      // 'ī'; '\u{12b}'
+    'I',      // 'Ĭ'; '\u{12c}'
+    'i',      // 'ĭ'; '\u{12d}'
+    'I',      // 'Į'; '\u{12e}'
+    'i',      // 'į'; '\u{12f}'
+    'I',      // 'İ'; '\u{130}'
+    'i',      // 'ı'; '\u{131}'
+    'Ĳ',      // 'Ĳ'; '\u{132}'
+    'ĳ',      // 'ĳ'; '\u{133}'
+    'J',      // 'Ĵ'; '\u{134}'
+    'j',      // 'ĵ'; '\u{135}'
+    'K',      // 'Ķ'; '\u{136}'
+    'k',      // 'ķ'; '\u{137}'
+    'ĸ',      // 'ĸ'; '\u{138}'
+    'L',      // 'Ĺ'; '\u{139}'
+    'l',      // 'ĺ'; '\u{13a}'
+    'L',      // 'Ļ'; '\u{13b}'
+    'l',      // 'ļ'; '\u{13c}'
+    'L',      // 'Ľ'; '\u{13d}'
+    'l',      // 'ľ'; '\u{13e}'
+    'L',      // 'Ŀ'; '\u{13f}'
+    'l',      // 'ŀ'; '\u{140}'
+    'L',      // 'Ł'; '\u{141}'
+    'l',      // 'ł'; '\u{142}'
+    'N',      // 'Ń'; '\u{143}'
+    'n',      // 'ń'; '\u{144}'
+    'N',      // 'Ņ'; '\u{145}'
+    'n',      // 'ņ'; '\u{146}'
+    'N',      // 'Ň'; '\u{147}'
+    'n',      // 'ň'; '\u{148}'
+    'n',      // 'ŉ'; '\u{149}'
+    'N',      // 'Ŋ'; '\u{14a}'
+    'n',      // 'ŋ'; '\u{14b}'
+    'O',      // 'Ō'; '\u{14c}'
+    'o',      // 'ō'; '\u{14d}'
+    'O',      // 'Ŏ'; '\u{14e}'
+    'o',      // 'ŏ'; '\u{14f}'
+    'O',      // 'Ő'; '\u{150}'
+    'o',      // 'ő'; '\u{151}'
+    'Œ',      // 'Œ'; '\u{152}'
+    'œ',      // 'œ'; '\u{153}'
+    'R',      // 'Ŕ'; '\u{154}'
+    'r',      // 'ŕ'; '\u{155}'
+    'R',      // 'Ŗ'; '\u{156}'
+    'r',      // 'ŗ'; '\u{157}'
+    'R',      // 'Ř'; '\u{158}'
+    'r',      // 'ř'; '\u{159}'
+    'S',      // 'Ś'; '\u{15a}'
+    's',      // 'ś'; '\u{15b}'
+    'S',      // 'Ŝ'; '\u{15c}'
+    's',      // 'ŝ'; '\u{15d}'
+    'S',      // 'Ş'; '\u{15e}'
+    's',      // 'ş'; '\u{15f}'
+    'S',      // 'Š'; '\u{160}'
+    's',      // 'š'; '\u{161}'
+    'T',      // 'Ţ'; '\u{162}'
+    't',      // 'ţ'; '\u{163}'
+    'T',      // 'Ť'; '\u{164}'
+    't',      // 'ť'; '\u{165}'
+    'T',      // 'Ŧ'; '\u{166}'
+    't',      // 'ŧ'; '\u{167}'
+    'U',      // 'Ũ'; '\u{168}'
+    'u',      // 'ũ'; '\u{169}'
+    'U',      // 'Ū'; '\u{16a}'
+    'u',      // 'ū'; '\u{16b}'
+    'U',      // 'Ŭ'; '\u{16c}'
+    'u',      // 'ŭ'; '\u{16d}'
+    'U',      // 'Ů'; '\u{16e}'
+    'u',      // 'ů'; '\u{16f}'
+    'U',      // 'Ű'; '\u{170}'
+    'u',      // 'ű'; '\u{171}'
+    'U',      // 'Ų'; '\u{172}'
+    'u',      // 'ų'; '\u{173}'
+    'W',      // 'Ŵ'; '\u{174}'
+    'w',      // 'ŵ'; '\u{175}'
+    'Y',      // 'Ŷ'; '\u{176}'
+    'y',      // 'ŷ'; '\u{177}'
+    'Y',      // 'Ÿ'; '\u{178}'
+    'Z',      // 'Ź'; '\u{179}'
+    'z',      // 'ź'; '\u{17a}'
+    'Z',      // 'Ż'; '\u{17b}'
+    'z',      // 'ż'; '\u{17c}'
+    'Z',      // 'Ž'; '\u{17d}'
+    'z',      // 'ž'; '\u{17e}'
+    's',      // 'ſ'; '\u{17f}'
+    'b',      // 'ƀ'; '\u{180}'
+    'B',      // 'Ɓ'; '\u{181}'
+    'b',      // 'Ƃ'; '\u{182}'
+    'b',      // 'ƃ'; '\u{183}'
+    'b',      // 'Ƅ'; '\u{184}'
+    'ƅ',      // 'ƅ'; '\u{185}'
+    'O',      // 'Ɔ'; '\u{186}'
+    'C',      // 'Ƈ'; '\u{187}'
+    'c',      // 'ƈ'; '\u{188}'
+    'D',      // 'Ɖ'; '\u{189}'
+    'D',      // 'Ɗ'; '\u{18a}'
+    'd',      // 'Ƌ'; '\u{18b}'
+    'd',      // 'ƌ'; '\u{18c}'
+    'ƍ',      // 'ƍ'; '\u{18d}'
+    'E',      // 'Ǝ'; '\u{18e}'
+    'e',      // 'Ə'; '\u{18f}'
+    'E',      // 'Ɛ'; '\u{190}'
+    'F',      // 'Ƒ'; '\u{191}'
+    'f',      // 'ƒ'; '\u{192}'
+    'G',      // 'Ɠ'; '\u{193}'
+    'Ɣ',      // 'Ɣ'; '\u{194}'
+    'h',      // 'ƕ'; '\u{195}'
+    'I',      // 'Ɩ'; '\u{196}'
+    'I',      // 'Ɨ'; '\u{197}'
+    'Ƙ',      // 'Ƙ'; '\u{198}'
+    'k',      // 'ƙ'; '\u{199}'
+    'l',      // 'ƚ'; '\u{19a}'
+    'ƛ',      // 'ƛ'; '\u{19b}'
+    'M',      // 'Ɯ'; '\u{19c}'
+    'N',      // 'Ɲ'; '\u{19d}'
+    'n',      // 'ƞ'; '\u{19e}'
+    'O',      // 'Ɵ'; '\u{19f}'
+    'O',      // 'Ơ'; '\u{1a0}'
+    'o',      // 'ơ'; '\u{1a1}'
+    'Ƣ',      // 'Ƣ'; '\u{1a2}'
+    'ƣ',      // 'ƣ'; '\u{1a3}'
+    'P',      // 'Ƥ'; '\u{1a4}'
+    'p',      // 'ƥ'; '\u{1a5}'
+    'R',      // 'Ʀ'; '\u{1a6}'
+    'S',      // 'Ƨ'; '\u{1a7}'
+    's',      // 'ƨ'; '\u{1a8}'
+    'Ʃ',      // 'Ʃ'; '\u{1a9}'
+    'l',      // 'ƪ'; '\u{1aa}'
+    't',      // 'ƫ'; '\u{1ab}'
+    'T',      // 'Ƭ'; '\u{1ac}'
+    't',      // 'ƭ'; '\u{1ad}'
+    'T',      // 'Ʈ'; '\u{1ae}'
+    'U',      // 'Ư'; '\u{1af}'
+    'u',      // 'ư'; '\u{1b0}'
+    'Ʊ',      // 'Ʊ'; '\u{1b1}'
+    'V',      // 'Ʋ'; '\u{1b2}'
+    'Y',      // 'Ƴ'; '\u{1b3}'
+    'y',      // 'ƴ'; '\u{1b4}'
+    'Z',      // 'Ƶ'; '\u{1b5}'
+    'z',      // 'ƶ'; '\u{1b6}'
+    'Ʒ',      // 'Ʒ'; '\u{1b7}'
+    'Ƹ',      // 'Ƹ'; '\u{1b8}'
+    'ƹ',      // 'ƹ'; '\u{1b9}'
+    'ƺ',      // 'ƺ'; '\u{1ba}'
+    'ƻ',      // 'ƻ'; '\u{1bb}'
+    'Ƽ',      // 'Ƽ'; '\u{1bc}'
+    'ƽ',      // 'ƽ'; '\u{1bd}'
+    'ƾ',      // 'ƾ'; '\u{1be}'
+    'ƿ',      // 'ƿ'; '\u{1bf}'
+    'ǀ',      // 'ǀ'; '\u{1c0}'
+    'ǁ',      // 'ǁ'; '\u{1c1}'
+    'ǂ',      // 'ǂ'; '\u{1c2}'
+    '!',      // 'ǃ'; '\u{1c3}'
+    'Ǆ',      // 'Ǆ'; '\u{1c4}'
+    'ǅ',      // 'ǅ'; '\u{1c5}'
+    'ǆ',      // 'ǆ'; '\u{1c6}'
+    'Ǉ',      // 'Ǉ'; '\u{1c7}'
+    'ǈ',      // 'ǈ'; '\u{1c8}'
+    'ǉ',      // 'ǉ'; '\u{1c9}'
+    'Ǌ',      // 'Ǌ'; '\u{1ca}'
+    'ǋ',      // 'ǋ'; '\u{1cb}'
+    'ǌ',      // 'ǌ'; '\u{1cc}'
+    'A',      // 'Ǎ'; '\u{1cd}'
+    'a',      // 'ǎ'; '\u{1ce}'
+    'I',      // 'Ǐ'; '\u{1cf}'
+    'i',      // 'ǐ'; '\u{1d0}'
+    'O',      // 'Ǒ'; '\u{1d1}'
+    'o',      // 'ǒ'; '\u{1d2}'
+    'U',      // 'Ǔ'; '\u{1d3}'
+    'u',      // 'ǔ'; '\u{1d4}'
+    'U',      // 'Ǖ'; '\u{1d5}'
+    'u',      // 'ǖ'; '\u{1d6}'
+    'U',      // 'Ǘ'; '\u{1d7}'
+    'u',      // 'ǘ'; '\u{1d8}'
+    'U',      // 'Ǚ'; '\u{1d9}'
+    'u',      // 'ǚ'; '\u{1da}'
+    'U',      // 'Ǜ'; '\u{1db}'
+    'u',      // 'ǜ'; '\u{1dc}'
+    'e',      // 'ǝ'; '\u{1dd}'
+    'A',      // 'Ǟ'; '\u{1de}'
+    'a',      // 'ǟ'; '\u{1df}'
+    'A',      // 'Ǡ'; '\u{1e0}'
+    'a',      // 'ǡ'; '\u{1e1}'
+    'Æ',      // 'Ǣ'; '\u{1e2}'
+    'æ',      // 'ǣ'; '\u{1e3}'
+    'G',      // 'Ǥ'; '\u{1e4}'
+    'g',      // 'ǥ'; '\u{1e5}'
+    'G',      // 'Ǧ'; '\u{1e6}'
+    'g',      // 'ǧ'; '\u{1e7}'
+    'K',      // 'Ǩ'; '\u{1e8}'
+    'k',      // 'ǩ'; '\u{1e9}'
+    'O',      // 'Ǫ'; '\u{1ea}'
+    'o',      // 'ǫ'; '\u{1eb}'
+    'O',      // 'Ǭ'; '\u{1ec}'
+    'o',      // 'ǭ'; '\u{1ed}'
+    'Ǯ',      // 'Ǯ'; '\u{1ee}'
+    'ǯ',      // 'ǯ'; '\u{1ef}'
+    'j',      // 'ǰ'; '\u{1f0}'
+    'Ǳ',      // 'Ǳ'; '\u{1f1}'
+    'ǲ',      // 'ǲ'; '\u{1f2}'
+    'ǳ',      // 'ǳ'; '\u{1f3}'
+    'G',      // 'Ǵ'; '\u{1f4}'
+    'g',      // 'ǵ'; '\u{1f5}'
+    'Ƕ',      // 'Ƕ'; '\u{1f6}'
+    'Ƿ',      // 'Ƿ'; '\u{1f7}'
+    'N',      // 'Ǹ'; '\u{1f8}'
+    'n',      // 'ǹ'; '\u{1f9}'
+    'A',      // 'Ǻ'; '\u{1fa}'
+    'a',      // 'ǻ'; '\u{1fb}'
+    'Æ',      // 'Ǽ'; '\u{1fc}'
+    'æ',      // 'ǽ'; '\u{1fd}'
+    'O',      // 'Ǿ'; '\u{1fe}'
+    'o',      // 'ǿ'; '\u{1ff}'
+    'A',      // 'Ȁ'; '\u{200}'
+    'a',      // 'ȁ'; '\u{201}'
+    'A',      // 'Ȃ'; '\u{202}'
+    'a',      // 'ȃ'; '\u{203}'
+    'E',      // 'Ȅ'; '\u{204}'
+    'e',      // 'ȅ'; '\u{205}'
+    'E',      // 'Ȇ'; '\u{206}'
+    'e',      // 'ȇ'; '\u{207}'
+    'I',      // 'Ȉ'; '\u{208}'
+    'i',      // 'ȉ'; '\u{209}'
+    'I',      // 'Ȋ'; '\u{20a}'
+    'i',      // 'ȋ'; '\u{20b}'
+    'O',      // 'Ȍ'; '\u{20c}'
+    'o',      // 'ȍ'; '\u{20d}'
+    'O',      // 'Ȏ'; '\u{20e}'
+    'o',      // 'ȏ'; '\u{20f}'
+    'R',      // 'Ȑ'; '\u{210}'
+    'r',      // 'ȑ'; '\u{211}'
+    'R',      // 'Ȓ'; '\u{212}'
+    'r',      // 'ȓ'; '\u{213}'
+    'U',      // 'Ȕ'; '\u{214}'
+    'u',      // 'ȕ'; '\u{215}'
+    'U',      // 'Ȗ'; '\u{216}'
+    'u',      // 'ȗ'; '\u{217}'
+    'S',      // 'Ș'; '\u{218}'
+    's',      // 'ș'; '\u{219}'
+    'T',      // 'Ț'; '\u{21a}'
+    't',      // 'ț'; '\u{21b}'
+    'Ȝ',      // 'Ȝ'; '\u{21c}'
+    'ȝ',      // 'ȝ'; '\u{21d}'
+    'H',      // 'Ȟ'; '\u{21e}'
+    'h',      // 'ȟ'; '\u{21f}'
+    'N',      // 'Ƞ'; '\u{220}'
+    'd',      // 'ȡ'; '\u{221}'
+    'Ȣ',      // 'Ȣ'; '\u{222}'
+    'ȣ',      // 'ȣ'; '\u{223}'
+    'Z',      // 'Ȥ'; '\u{224}'
+    'z',      // 'ȥ'; '\u{225}'
+    'A',      // 'Ȧ'; '\u{226}'
+    'a',      // 'ȧ'; '\u{227}'
+    'E',      // 'Ȩ'; '\u{228}'
+    'e',      // 'ȩ'; '\u{229}'
+    'O',      // 'Ȫ'; '\u{22a}'
+    'o',      // 'ȫ'; '\u{22b}'
+    'O',      // 'Ȭ'; '\u{22c}'
+    'o',      // 'ȭ'; '\u{22d}'
+    'O',      // 'Ȯ'; '\u{22e}'
+    'o',      // 'ȯ'; '\u{22f}'
+    'O',      // 'Ȱ'; '\u{230}'
+    'o',      // 'ȱ'; '\u{231}'
+    'Y',      // 'Ȳ'; '\u{232}'
+    'y',      // 'ȳ'; '\u{233}'
+    'l',      // 'ȴ'; '\u{234}'
+    'n',      // 'ȵ'; '\u{235}'
+    't',      // 'ȶ'; '\u{236}'
+    'j',      // 'ȷ'; '\u{237}'
+    'ȸ',      // 'ȸ'; '\u{238}'
+    'ȹ',      // 'ȹ'; '\u{239}'
+    'A',      // 'Ⱥ'; '\u{23a}'
+    'C',      // 'Ȼ'; '\u{23b}'
+    'c',      // 'ȼ'; '\u{23c}'
+    'L',      // 'Ƚ'; '\u{23d}'
+    'T',      // 'Ⱦ'; '\u{23e}'
+    's',      // 'ȿ'; '\u{23f}'
+    'z',      // 'ɀ'; '\u{240}'
+    'Ɂ',      // 'Ɂ'; '\u{241}'
+    'ɂ',      // 'ɂ'; '\u{242}'
+    'B',      // 'Ƀ'; '\u{243}'
+    'U',      // 'Ʉ'; '\u{244}'
+    'V',      // 'Ʌ'; '\u{245}'
+    'E',      // 'Ɇ'; '\u{246}'
+    'e',      // 'ɇ'; '\u{247}'
+    'J',      // 'Ɉ'; '\u{248}'
+    'j',      // 'ɉ'; '\u{249}'
+    'Q',      // 'Ɋ'; '\u{24a}'
+    'q',      // 'ɋ'; '\u{24b}'
+    'R',      // 'Ɍ'; '\u{24c}'
+    'r',      // 'ɍ'; '\u{24d}'
+    'Y',      // 'Ɏ'; '\u{24e}'
+    'y',      // 'ɏ'; '\u{24f}'
+    'a',      // 'ɐ'; '\u{250}'
+    'a',      // 'ɑ'; '\u{251}'
+    'a',      // 'ɒ'; '\u{252}'
+    'b',      // 'ɓ'; '\u{253}'
+    'c',      // 'ɔ'; '\u{254}'
+    'c',      // 'ɕ'; '\u{255}'
+    'd',      // 'ɖ'; '\u{256}'
+    'd',      // 'ɗ'; '\u{257}'
+    'e',      // 'ɘ'; '\u{258}'
+    'e',      // 'ə'; '\u{259}'
+    'e',      // 'ɚ'; '\u{25a}'
+    'e',      // 'ɛ'; '\u{25b}'
+    'e',      // 'ɜ'; '\u{25c}'
+    'e',      // 'ɝ'; '\u{25d}'
+    'e',      // 'ɞ'; '\u{25e}'
+    'j',      // 'ɟ'; '\u{25f}'
+    'g',      // 'ɠ'; '\u{260}'
+    'g',      // 'ɡ'; '\u{261}'
+    'G',      // 'ɢ'; '\u{262}'
+    'g',      // 'ɣ'; '\u{263}'
+    'u',      // 'ɤ'; '\u{264}'
+    'h',      // 'ɥ'; '\u{265}'
+    'h',      // 'ɦ'; '\u{266}'
+    'h',      // 'ɧ'; '\u{267}'
+    'i',      // 'ɨ'; '\u{268}'
+    'i',      // 'ɩ'; '\u{269}'
+    'I',      // 'ɪ'; '\u{26a}'
+    'l',      // 'ɫ'; '\u{26b}'
+    'l',      // 'ɬ'; '\u{26c}'
+    'l',      // 'ɭ'; '\u{26d}'
+    'ɮ',      // 'ɮ'; '\u{26e}'
+    'm',      // 'ɯ'; '\u{26f}'
+    'm',      // 'ɰ'; '\u{270}'
+    'm',      // 'ɱ'; '\u{271}'
+    'n',      // 'ɲ'; '\u{272}'
+    'n',      // 'ɳ'; '\u{273}'
+    'N',      // 'ɴ'; '\u{274}'
+    'o',      // 'ɵ'; '\u{275}'
+    'ɶ',      // 'ɶ'; '\u{276}'
+    'ɷ',      // 'ɷ'; '\u{277}'
+    'ɸ',      // 'ɸ'; '\u{278}'
+    'r',      // 'ɹ'; '\u{279}'
+    'r',      // 'ɺ'; '\u{27a}'
+    'r',      // 'ɻ'; '\u{27b}'
+    'r',      // 'ɼ'; '\u{27c}'
+    'r',      // 'ɽ'; '\u{27d}'
+    'r',      // 'ɾ'; '\u{27e}'
+    'r',      // 'ɿ'; '\u{27f}'
+    'R',      // 'ʀ'; '\u{280}'
+    'R',      // 'ʁ'; '\u{281}'
+    's',      // 'ʂ'; '\u{282}'
+    'ʃ',      // 'ʃ'; '\u{283}'
+    'ʄ',      // 'ʄ'; '\u{284}'
+    'ʅ',      // 'ʅ'; '\u{285}'
+    'ʆ',      // 'ʆ'; '\u{286}'
+    't',      // 'ʇ'; '\u{287}'
+    't',      // 'ʈ'; '\u{288}'
+    'u',      // 'ʉ'; '\u{289}'
+    'ʊ',      // 'ʊ'; '\u{28a}'
+    'v',      // 'ʋ'; '\u{28b}'
+    'v',      // 'ʌ'; '\u{28c}'
+    'w',      // 'ʍ'; '\u{28d}'
+    'y',      // 'ʎ'; '\u{28e}'
+    'Y',      // 'ʏ'; '\u{28f}'
+    'z',      // 'ʐ'; '\u{290}'
+    'z',      // 'ʑ'; '\u{291}'
+    'ʒ',      // 'ʒ'; '\u{292}'
+    'ʓ',      // 'ʓ'; '\u{293}'
+    'ʔ',      // 'ʔ'; '\u{294}'
+    'ʕ',      // 'ʕ'; '\u{295}'
+    'ʖ',      // 'ʖ'; '\u{296}'
+    'c',      // 'ʗ'; '\u{297}'
+    'ʘ',      // 'ʘ'; '\u{298}'
+    'B',      // 'ʙ'; '\u{299}'
+    'e',      // 'ʚ'; '\u{29a}'
+    'G',      // 'ʛ'; '\u{29b}'
+    'H',      // 'ʜ'; '\u{29c}'
+    'j',      // 'ʝ'; '\u{29d}'
+    'k',      // 'ʞ'; '\u{29e}'
+    'L',      // 'ʟ'; '\u{29f}'
+];
+
+/// A char array corresponding to the following Unicode block:
+///
+/// - [Latin Extended Additional](https://en.wikipedia.org/wiki/Latin_Extended_Additional)
+///
+/// This covers the range `'\u{1e00}'..='\u{1eff}'`.
+static LATIN_EXTENDED_ADDITIONAL: [char; 256] = [
+    'A', // 'Ḁ'; '\u{1e00}'
+    'a', // 'ḁ'; '\u{1e01}'
+    'B', // 'Ḃ'; '\u{1e02}'
+    'b', // 'ḃ'; '\u{1e03}'
+    'B', // 'Ḅ'; '\u{1e04}'
+    'b', // 'ḅ'; '\u{1e05}'
+    'B', // 'Ḇ'; '\u{1e06}'
+    'b', // 'ḇ'; '\u{1e07}'
+    'C', // 'Ḉ'; '\u{1e08}'
+    'c', // 'ḉ'; '\u{1e09}'
+    'D', // 'Ḋ'; '\u{1e0a}'
+    'e', // 'ḋ'; '\u{1e0b}'
+    'D', // 'Ḍ'; '\u{1e0c}'
+    'd', // 'ḍ'; '\u{1e0d}'
+    'D', // 'Ḏ'; '\u{1e0e}'
+    'd', // 'ḏ'; '\u{1e0f}'
+    'D', // 'Ḑ'; '\u{1e10}'
+    'd', // 'ḑ'; '\u{1e11}'
+    'D', // 'Ḓ'; '\u{1e12}'
+    'd', // 'ḓ'; '\u{1e13}'
+    'E', // 'Ḕ'; '\u{1e14}'
+    'e', // 'ḕ'; '\u{1e15}'
+    'E', // 'Ḗ'; '\u{1e16}'
+    'e', // 'ḗ'; '\u{1e17}'
+    'E', // 'Ḙ'; '\u{1e18}'
+    'e', // 'ḙ'; '\u{1e19}'
+    'E', // 'Ḛ'; '\u{1e1a}'
+    'e', // 'ḛ'; '\u{1e1b}'
+    'E', // 'Ḝ'; '\u{1e1c}'
+    'e', // 'ḝ'; '\u{1e1d}'
+    'F', // 'Ḟ'; '\u{1e1e}'
+    'f', // 'ḟ'; '\u{1e1f}'
+    'G', // 'Ḡ'; '\u{1e20}'
+    'g', // 'ḡ'; '\u{1e21}'
+    'H', // 'Ḣ'; '\u{1e22}'
+    'g', // 'ḣ'; '\u{1e23}'
+    'H', // 'Ḥ'; '\u{1e24}'
+    'g', // 'ḥ'; '\u{1e25}'
+    'H', // 'Ḧ'; '\u{1e26}'
+    'g', // 'ḧ'; '\u{1e27}'
+    'H', // 'Ḩ'; '\u{1e28}'
+    'g', // 'ḩ'; '\u{1e29}'
+    'H', // 'Ḫ'; '\u{1e2a}'
+    'h', // 'ḫ'; '\u{1e2b}'
+    'I', // 'Ḭ'; '\u{1e2c}'
+    'i', // 'ḭ'; '\u{1e2d}'
+    'I', // 'Ḯ'; '\u{1e2e}'
+    'i', // 'ḯ'; '\u{1e2f}'
+    'K', // 'Ḱ'; '\u{1e30}'
+    'k', // 'ḱ'; '\u{1e31}'
+    'K', // 'Ḳ'; '\u{1e32}'
+    'k', // 'ḳ'; '\u{1e33}'
+    'K', // 'Ḵ'; '\u{1e34}'
+    'k', // 'ḵ'; '\u{1e35}'
+    'L', // 'Ḷ'; '\u{1e36}'
+    'l', // 'ḷ'; '\u{1e37}'
+    'L', // 'Ḹ'; '\u{1e38}'
+    'l', // 'ḹ'; '\u{1e39}'
+    'L', // 'Ḻ'; '\u{1e3a}'
+    'l', // 'ḻ'; '\u{1e3b}'
+    'L', // 'Ḽ'; '\u{1e3c}'
+    'l', // 'ḽ'; '\u{1e3d}'
+    'M', // 'Ḿ'; '\u{1e3e}'
+    'm', // 'ḿ'; '\u{1e3f}'
+    'M', // 'Ṁ'; '\u{1e40}'
+    'm', // 'ṁ'; '\u{1e41}'
+    'M', // 'Ṃ'; '\u{1e42}'
+    'm', // 'ṃ'; '\u{1e43}'
+    'N', // 'Ṅ'; '\u{1e44}'
+    'n', // 'ṅ'; '\u{1e45}'
+    'N', // 'Ṇ'; '\u{1e46}'
+    'n', // 'ṇ'; '\u{1e47}'
+    'N', // 'Ṉ'; '\u{1e48}'
+    'n', // 'ṉ'; '\u{1e49}'
+    'N', // 'Ṋ'; '\u{1e4a}'
+    'n', // 'ṋ'; '\u{1e4b}'
+    'O', // 'Ṍ'; '\u{1e4c}'
+    'o', // 'ṍ'; '\u{1e4d}'
+    'O', // 'Ṏ'; '\u{1e4e}'
+    'o', // 'ṏ'; '\u{1e4f}'
+    'O', // 'Ṑ'; '\u{1e50}'
+    'o', // 'ṑ'; '\u{1e51}'
+    'O', // 'Ṓ'; '\u{1e52}'
+    'o', // 'ṓ'; '\u{1e53}'
+    'P', // 'Ṕ'; '\u{1e54}'
+    'p', // 'ṕ'; '\u{1e55}'
+    'P', // 'Ṗ'; '\u{1e56}'
+    'p', // 'ṗ'; '\u{1e57}'
+    'R', // 'Ṙ'; '\u{1e58}'
+    'r', // 'ṙ'; '\u{1e59}'
+    'R', // 'Ṛ'; '\u{1e5a}'
+    'r', // 'ṛ'; '\u{1e5b}'
+    'R', // 'Ṝ'; '\u{1e5c}'
+    'r', // 'ṝ'; '\u{1e5d}'
+    'R', // 'Ṟ'; '\u{1e5e}'
+    'r', // 'ṟ'; '\u{1e5f}'
+    'S', // 'Ṡ'; '\u{1e60}'
+    's', // 'ṡ'; '\u{1e61}'
+    'S', // 'Ṣ'; '\u{1e62}'
+    's', // 'ṣ'; '\u{1e63}'
+    'S', // 'Ṥ'; '\u{1e64}'
+    's', // 'ṥ'; '\u{1e65}'
+    'S', // 'Ṧ'; '\u{1e66}'
+    's', // 'ṧ'; '\u{1e67}'
+    'S', // 'Ṩ'; '\u{1e68}'
+    's', // 'ṩ'; '\u{1e69}'
+    'T', // 'Ṫ'; '\u{1e6a}'
+    't', // 'ṫ'; '\u{1e6b}'
+    'T', // 'Ṭ'; '\u{1e6c}'
+    't', // 'ṭ'; '\u{1e6d}'
+    'T', // 'Ṯ'; '\u{1e6e}'
+    't', // 'ṯ'; '\u{1e6f}'
+    'T', // 'Ṱ'; '\u{1e70}'
+    't', // 'ṱ'; '\u{1e71}'
+    'U', // 'Ṳ'; '\u{1e72}'
+    'u', // 'ṳ'; '\u{1e73}'
+    'U', // 'Ṵ'; '\u{1e74}'
+    'u', // 'ṵ'; '\u{1e75}'
+    'U', // 'Ṷ'; '\u{1e76}'
+    'u', // 'ṷ'; '\u{1e77}'
+    'U', // 'Ṹ'; '\u{1e78}'
+    'u', // 'ṹ'; '\u{1e79}'
+    'U', // 'Ṻ'; '\u{1e7a}'
+    'u', // 'ṻ'; '\u{1e7b}'
+    'V', // 'Ṽ'; '\u{1e7c}'
+    'v', // 'ṽ'; '\u{1e7d}'
+    'V', // 'Ṿ'; '\u{1e7e}'
+    'v', // 'ṿ'; '\u{1e7f}'
+    'W', // 'Ẁ'; '\u{1e80}'
+    'w', // 'ẁ'; '\u{1e81}'
+    'W', // 'Ẃ'; '\u{1e82}'
+    'w', // 'ẃ'; '\u{1e83}'
+    'W', // 'Ẅ'; '\u{1e84}'
+    'w', // 'ẅ'; '\u{1e85}'
+    'W', // 'Ẇ'; '\u{1e86}'
+    'w', // 'ẇ'; '\u{1e87}'
+    'W', // 'Ẉ'; '\u{1e88}'
+    'j', // 'ẉ'; '\u{1e89}'
+    'X', // 'Ẋ'; '\u{1e8a}'
+    'x', // 'ẋ'; '\u{1e8b}'
+    'X', // 'Ẍ'; '\u{1e8c}'
+    'x', // 'ẍ'; '\u{1e8d}'
+    'Y', // 'Ẏ'; '\u{1e8e}'
+    'y', // 'ẏ'; '\u{1e8f}'
+    'Z', // 'Ẑ'; '\u{1e90}'
+    'z', // 'ẑ'; '\u{1e91}'
+    'Z', // 'Ẓ'; '\u{1e92}'
+    'z', // 'ẓ'; '\u{1e93}'
+    'Z', // 'Ẕ'; '\u{1e94}'
+    'z', // 'ẕ'; '\u{1e95}'
+    'h', // 'ẖ'; '\u{1e96}'
+    't', // 'ẗ'; '\u{1e97}'
+    'w', // 'ẘ'; '\u{1e98}'
+    'y', // 'ẙ'; '\u{1e99}'
+    'a', // 'ẚ'; '\u{1e9a}'
+    'i', // 'ẛ'; '\u{1e9b}'
+    'f', // 'ẜ'; '\u{1e9c}'
+    'f', // 'ẝ'; '\u{1e9d}'
+    'ẞ', // 'ẞ'; '\u{1e9e}'
+    'ẟ', // 'ẟ'; '\u{1e9f}'
+    'A', // 'Ạ'; '\u{1ea0}'
+    'a', // 'ạ'; '\u{1ea1}'
+    'A', // 'Ả'; '\u{1ea2}'
+    'a', // 'ả'; '\u{1ea3}'
+    'A', // 'Ấ'; '\u{1ea4}'
+    'a', // 'ấ'; '\u{1ea5}'
+    'A', // 'Ầ'; '\u{1ea6}'
+    'a', // 'ầ'; '\u{1ea7}'
+    'A', // 'Ẩ'; '\u{1ea8}'
+    'a', // 'ẩ'; '\u{1ea9}'
+    'A', // 'Ẫ'; '\u{1eaa}'
+    'a', // 'ẫ'; '\u{1eab}'
+    'A', // 'Ậ'; '\u{1eac}'
+    'a', // 'ậ'; '\u{1ead}'
+    'A', // 'Ắ'; '\u{1eae}'
+    'a', // 'ắ'; '\u{1eaf}'
+    'A', // 'Ằ'; '\u{1eb0}'
+    'a', // 'ằ'; '\u{1eb1}'
+    'A', // 'Ẳ'; '\u{1eb2}'
+    'a', // 'ẳ'; '\u{1eb3}'
+    'A', // 'Ẵ'; '\u{1eb4}'
+    'a', // 'ẵ'; '\u{1eb5}'
+    'A', // 'Ặ'; '\u{1eb6}'
+    'a', // 'ặ'; '\u{1eb7}'
+    'E', // 'Ẹ'; '\u{1eb8}'
+    'e', // 'ẹ'; '\u{1eb9}'
+    'E', // 'Ẻ'; '\u{1eba}'
+    'e', // 'ẻ'; '\u{1ebb}'
+    'E', // 'Ẽ'; '\u{1ebc}'
+    'e', // 'ẽ'; '\u{1ebd}'
+    'E', // 'Ế'; '\u{1ebe}'
+    'e', // 'ế'; '\u{1ebf}'
+    'E', // 'Ề'; '\u{1ec0}'
+    'e', // 'ề'; '\u{1ec1}'
+    'E', // 'Ể'; '\u{1ec2}'
+    'e', // 'ể'; '\u{1ec3}'
+    'E', // 'Ễ'; '\u{1ec4}'
+    'e', // 'ễ'; '\u{1ec5}'
+    'E', // 'Ệ'; '\u{1ec6}'
+    'e', // 'ệ'; '\u{1ec7}'
+    'I', // 'Ỉ'; '\u{1ec8}'
+    'i', // 'ỉ'; '\u{1ec9}'
+    'I', // 'Ị'; '\u{1eca}'
+    'i', // 'ị'; '\u{1ecb}'
+    'O', // 'Ọ'; '\u{1ecc}'
+    'o', // 'ọ'; '\u{1ecd}'
+    'O', // 'Ỏ'; '\u{1ece}'
+    'o', // 'ỏ'; '\u{1ecf}'
+    'O', // 'Ố'; '\u{1ed0}'
+    'o', // 'ố'; '\u{1ed1}'
+    'O', // 'Ồ'; '\u{1ed2}'
+    'o', // 'ồ'; '\u{1ed3}'
+    'O', // 'Ổ'; '\u{1ed4}'
+    'o', // 'ổ'; '\u{1ed5}'
+    'O', // 'Ỗ'; '\u{1ed6}'
+    'o', // 'ỗ'; '\u{1ed7}'
+    'O', // 'Ộ'; '\u{1ed8}'
+    'o', // 'ộ'; '\u{1ed9}'
+    'O', // 'Ớ'; '\u{1eda}'
+    'o', // 'ớ'; '\u{1edb}'
+    'O', // 'Ờ'; '\u{1edc}'
+    'o', // 'ờ'; '\u{1edd}'
+    'O', // 'Ở'; '\u{1ede}'
+    'o', // 'ở'; '\u{1edf}'
+    'O', // 'Ỡ'; '\u{1ee0}'
+    'o', // 'ỡ'; '\u{1ee1}'
+    'O', // 'Ợ'; '\u{1ee2}'
+    'o', // 'ợ'; '\u{1ee3}'
+    'U', // 'Ụ'; '\u{1ee4}'
+    'u', // 'ụ'; '\u{1ee5}'
+    'U', // 'Ủ'; '\u{1ee6}'
+    'u', // 'ủ'; '\u{1ee7}'
+    'U', // 'Ứ'; '\u{1ee8}'
+    'u', // 'ứ'; '\u{1ee9}'
+    'U', // 'Ừ'; '\u{1eea}'
+    'u', // 'ừ'; '\u{1eeb}'
+    'U', // 'Ử'; '\u{1eec}'
+    'u', // 'ử'; '\u{1eed}'
+    'U', // 'Ữ'; '\u{1eee}'
+    'u', // 'ữ'; '\u{1eef}'
+    'U', // 'Ự'; '\u{1ef0}'
+    'u', // 'ự'; '\u{1ef1}'
+    'Y', // 'Ỳ'; '\u{1ef2}'
+    'y', // 'ỳ'; '\u{1ef3}'
+    'Y', // 'Ỵ'; '\u{1ef4}'
+    'y', // 'ỵ'; '\u{1ef5}'
+    'Y', // 'Ỷ'; '\u{1ef6}'
+    'y', // 'ỷ'; '\u{1ef7}'
+    'Y', // 'Ỹ'; '\u{1ef8}'
+    'y', // 'ỹ'; '\u{1ef9}'
+    'Ỻ', // 'Ỻ'; '\u{1efa}'
+    'ỻ', // 'ỻ'; '\u{1efb}'
+    'Ỽ', // 'Ỽ'; '\u{1efc}'
+    'ỽ', // 'ỽ'; '\u{1efd}'
+    'Ỿ', // 'Ỿ'; '\u{1efe}'
+    'ỿ', // 'ỿ'; '\u{1eff}'
+];
+
+/// A char array corresponding to the following Unicode block:
+///
+/// - [Superscripts and Subscripts](https://en.wikipedia.org/wiki/Superscripts_and_Subscripts)
+///
+/// This covers the range `'\u{2070}'..='\u{209f}'`.
+static SUPERSCRIPTS_AND_SUBSCRIPTS: [char; 48] = [
+    '0', // '⁰'; '\u{2070}'
+    'i', // 'ⁱ'; '\u{2071}'
+    '⁲', // '⁲'; '\u{2072}'
+    '⁳', // '⁳'; '\u{2073}'
+    '4', // '⁴'; '\u{2074}'
+    '5', // '⁵'; '\u{2075}'
+    '6', // '⁶'; '\u{2076}'
+    '7', // '⁷'; '\u{2077}'
+    '8', // '⁸'; '\u{2078}'
+    '0', // '⁹'; '\u{2079}'
+    '+', // '⁺'; '\u{207a}'
+    '-', // '⁻'; '\u{207b}'
+    '=', // '⁼'; '\u{207c}'
+    '(', // '⁽'; '\u{207d}'
+    ')', // '⁾'; '\u{207e}'
+    'n', // 'ⁿ'; '\u{207f}'
+    '0', // '₀'; '\u{2080}'
+    '1', // '₁'; '\u{2081}'
+    '2', // '₂'; '\u{2082}'
+    '3', // '₃'; '\u{2083}'
+    '4', // '₄'; '\u{2084}'
+    '5', // '₅'; '\u{2085}'
+    '6', // '₆'; '\u{2086}'
+    '7', // '₇'; '\u{2087}'
+    '8', // '₈'; '\u{2088}'
+    '9', // '₉'; '\u{2089}'
+    '+', // '₊'; '\u{208a}'
+    '-', // '₋'; '\u{208b}'
+    '=', // '₌'; '\u{208c}'
+    '(', // '₍'; '\u{208d}'
+    ')', // '₎'; '\u{208e}'
+    '₏', // '₏'; '\u{208f}'
+    'a', // 'ₐ'; '\u{2090}'
+    'e', // 'ₑ'; '\u{2091}'
+    'o', // 'ₒ'; '\u{2092}'
+    'x', // 'ₓ'; '\u{2093}'
+    'e', // 'ₔ'; '\u{2094}'
+    'h', // 'ₕ'; '\u{2095}'
+    'k', // 'ₖ'; '\u{2096}'
+    'l', // 'ₗ'; '\u{2097}'
+    'm', // 'ₘ'; '\u{2098}'
+    'n', // 'ₙ'; '\u{2099}'
+    'p', // 'ₚ'; '\u{209a}'
+    's', // 'ₛ'; '\u{209b}'
+    't', // 'ₜ'; '\u{209c}'
+    '₝', // '₝'; '\u{209d}'
+    '₞', // '₞'; '\u{209e}'
+    '₟', // '₟'; '\u{209f}'
+];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper function for test assertions.
+    fn check_conversions(pairs: &[(char, char)]) {
+        for (original, normalized) in pairs {
+            assert_eq!(normalize(*original), *normalized);
+        }
+    }
+
+    /// General conversion checks
+    #[test]
+    fn general() {
+        check_conversions(&[
+            ('ą', 'a'),
+            ('À', 'A'),
+            ('ć', 'c'),
+            ('ę', 'e'),
+            ('ł', 'l'),
+            ('ń', 'n'),
+            ('ó', 'o'),
+            ('ś', 's'),
+            ('ź', 'z'),
+            ('ż', 'z'),
+            ('Ą', 'A'),
+            ('Ć', 'C'),
+            ('Ę', 'E'),
+            ('ł', 'l'),
+            ('Ł', 'L'),
+            ('Ń', 'N'),
+            ('Ó', 'O'),
+            ('Ś', 'S'),
+            ('Ź', 'Z'),
+            ('Ż', 'Z'),
+            ('¡', '!'),
+        ]);
+    }
+
+    /// Some checks for characters which are not visible.
+    #[test]
+    fn invisible_chars() {
+        check_conversions(&[('\u{a0}', '\u{a0}'), ('\u{ad}', '\u{ad}')]);
+    }
+
+    /// Check boundary cases in case ranges are modified.
+    #[test]
+    fn boundary_cases() {
+        check_conversions(&[
+            ('\u{9f}', '\u{9f}'),
+            ('\u{a0}', '\u{a0}'),
+            ('¡', '!'),
+            ('ʟ', 'L'),
+            ('\u{2a0}', '\u{2a0}'),
+            ('\u{1dff}', '\u{1dff}'),
+            ('Ḁ', 'A'),
+            ('ỹ', 'y'),
+            ('\u{1eff}', '\u{1eff}'),
+            ('\u{1f00}', '\u{1f00}'),
+            ('⁰', '0'),
+            ('\u{209c}', 't'),
+            ('\u{209f}', '\u{209f}'),
+            ('\u{20a0}', '\u{20a0}'),
+        ]);
+    }
+
+    /// Check that conversions outside the blocks are unchanged.
+    #[test]
+    fn unchanged_outside_blocks() {
+        check_conversions(&[
+            ('a', 'a'),
+            ('⟁', '⟁'),
+            ('┍', '┍'),
+            ('ω', 'ω'),
+            ('⁕', '⁕'),
+            ('ה', 'ה'),
+        ]);
+    }
 }
