@@ -1,7 +1,7 @@
 # Nucleo
 
 
-`nucleo` is a highly performant fuzzy matcher written in rust. It aims to fill the same use case as `fzf` and `skim`. Compared to `fzf` `nucleo` has a significantly faster matching algorithm. This mainly makes a difference when matching patterns with low selectivity on many items. An (unscientific) comparison is shown in the benchmark section below.
+`nucleo` is a highly performant fuzzy matcher written in Rust. It aims to fill the same use case as `fzf` and `skim`. Compared to `fzf` `nucleo` has a significantly faster matching algorithm. This mainly makes a difference when matching patterns with low selectivity on many items. An (unscientific) comparison is shown in the benchmark section below.
 
 > Note: If you are looking for a replacement of the `fuzzy-matcher` crate and not a fully managed fuzzy picker, you should use the [`nucleo-matcher`](https://crates.io/crates/nucleo-matcher) crate.
 
