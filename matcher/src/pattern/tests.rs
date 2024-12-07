@@ -1,4 +1,4 @@
-use crate::pattern::{Atom, AtomKind, CaseMatching, Normalization};
+use crate::pattern::{Atom, AtomKind, CaseMatching, Normalization, Pattern};
 
 #[test]
 fn negative() {
@@ -111,4 +111,39 @@ fn escape() {
     let pat = Atom::parse("!\\^foo\\$", CaseMatching::Smart, Normalization::Smart);
     assert_eq!(pat.needle.to_string(), "^foo$");
     assert_eq!(pat.kind, AtomKind::Substring);
+}
+
+#[test]
+fn pattern_atoms() {
+    assert_eq!(
+        Pattern::parse("a b", CaseMatching::Ignore, Normalization::Smart).atoms,
+        vec![
+            Atom::parse("a", CaseMatching::Ignore, Normalization::Smart),
+            Atom::parse("b", CaseMatching::Ignore, Normalization::Smart),
+        ]
+    );
+
+    assert_eq!(
+        Pattern::parse("a\n b", CaseMatching::Ignore, Normalization::Smart).atoms,
+        vec![
+            Atom::parse("a", CaseMatching::Ignore, Normalization::Smart),
+            Atom::parse("b", CaseMatching::Ignore, Normalization::Smart),
+        ]
+    );
+
+    assert_eq!(
+        Pattern::parse("  a b\r\n", CaseMatching::Ignore, Normalization::Smart).atoms,
+        vec![
+            Atom::parse("a", CaseMatching::Ignore, Normalization::Smart),
+            Atom::parse("b", CaseMatching::Ignore, Normalization::Smart),
+        ]
+    );
+
+    assert_eq!(
+        Pattern::parse("ほ　げ", CaseMatching::Smart, Normalization::Smart).atoms,
+        vec![
+            Atom::parse("ほ", CaseMatching::Smart, Normalization::Smart),
+            Atom::parse("げ", CaseMatching::Smart, Normalization::Smart),
+        ],
+    )
 }

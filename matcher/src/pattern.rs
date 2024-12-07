@@ -401,7 +401,7 @@ fn pattern_atoms(pattern: &str) -> impl Iterator<Item = &str> + '_ {
     let mut saw_backslash = false;
     pattern.split(move |c| {
         saw_backslash = match c {
-            ' ' if !saw_backslash => return true,
+            c if c.is_whitespace() && !saw_backslash => return true,
             '\\' => true,
             _ => false,
         };

@@ -45,6 +45,21 @@ let matches = Pattern::new("^foo bar", CaseMatching::Ignore, Normalization::Smar
 assert_eq!(matches, vec![("^foo/bar", 188), ("bar/^foo", 188)]);
 ```
 
+Word segmentation is performed automatically on any unescaped character for which [`is_whitespace`](char::is_whitespace) returns true.
+This is relevant, for instance, with non-english keyboard input.
+
+```
+# use nucleo_matcher::pattern::{Atom, Pattern, Normalization, CaseMatching};
+assert_eq!(
+    // double-width 'Ideographic Space', i.e. `'\u{3000}'`
+    Pattern::parse("ほげ　ふが", CaseMatching::Smart, Normalization::Smart).atoms,
+    vec![
+        Atom::parse("ほげ", CaseMatching::Smart, Normalization::Smart),
+        Atom::parse("ふが", CaseMatching::Smart, Normalization::Smart),
+    ],
+);
+```
+
 If word segmentation is also not desired, a single `Atom` can be constructed directly.
 
 ```
