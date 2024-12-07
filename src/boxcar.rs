@@ -333,7 +333,7 @@ pub struct ParIter<'v, T> {
     start: u32,
     vec: &'v Vec<T>,
 }
-impl<'v, T> ParIter<'v, T> {
+impl<T> ParIter<'_, T> {
     pub fn end(&self) -> u32 {
         self.end
     }
