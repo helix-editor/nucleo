@@ -204,7 +204,7 @@ pub enum Chars<'a> {
     Ascii(slice::Iter<'a, u8>),
     Unicode(slice::Iter<'a, char>),
 }
-impl<'a> Iterator for Chars<'a> {
+impl Iterator for Chars<'_> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
