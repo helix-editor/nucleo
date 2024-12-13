@@ -285,6 +285,35 @@ impl State {
 
 /// A high level matcher worker that quickly computes matches in a background
 /// threadpool.
+///
+/// ## Example
+/// ```
+/// use std::sync::atomic::{AtomicBool, Ordering};
+/// use std::sync::Arc;
+/// use std::thread;
+///
+/// use nucleo::{Config, Nucleo};
+///
+/// static NEEDS_UPDATE: AtomicBool = AtomicBool::new(false);
+///
+/// // initialize a new matcher with default configuration and one column
+/// let matcher = Nucleo::new(
+///     Config::DEFAULT,
+///     Arc::new(|| NEEDS_UPDATE.store(true, Ordering::Relaxed)),
+///     None,
+///     1
+/// );
+///
+/// // get a handle to add items to the matcher
+/// let injector = matcher.injector();
+///
+/// // add items to the matcher
+/// thread::spawn(move || {
+///     injector.push("Hello, world!".to_string(), |s, cols| {
+///         cols[0] = (&**s).into();
+///     });
+/// });
+/// ```
 pub struct Nucleo<T: Sync + Send + 'static> {
     // the way the API is build we totally don't actually need these to be Arcs
     // but this lets us avoid some unsafe
