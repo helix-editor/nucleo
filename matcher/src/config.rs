@@ -1,7 +1,7 @@
 use crate::chars::CharClass;
 use crate::score::BONUS_BOUNDARY;
 
-/// Configuration data that controls how a matcher behaves
+/// Configuration data that controls matcher behaviour.
 #[non_exhaustive]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Config {
@@ -14,16 +14,16 @@ pub struct Config {
     pub(crate) bonus_boundary_delimiter: u16,
     pub(crate) initial_char_class: CharClass,
 
-    /// Whether to normalize latin script characters to ASCII (enabled by default)
+    /// Whether to normalize latin script characters to ASCII (enabled by default).
     pub normalize: bool,
-    /// whether to ignore casing
+    /// Whether to ignore casing.
     pub ignore_case: bool,
     /// Whether to provide a bonus to matches by their distance from the start
     /// of the haystack. The bonus is fairly small compared to the normal gap
     /// penalty to avoid messing with the normal score heuristic. This setting
     /// is not turned on by default and only recommended for autocompletion
     /// usecases where the expectation is that the user is typing the entire
-    /// match. For a full fzf-like fuzzy matcher/picker word segmentation and
+    /// match. For a full `fzf`-like fuzzy matcher/picker word segmentation and
     /// explicit prefix literals should be used instead.
     pub prefer_prefix: bool,
 }

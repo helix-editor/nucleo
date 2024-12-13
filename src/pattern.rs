@@ -1,3 +1,4 @@
+//! Patterns to prescribe matching behaviour.
 pub use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Matcher, Utf32String};
 
@@ -12,6 +13,7 @@ pub(crate) enum Status {
     Rescore,
 }
 
+/// A list of patterns corresponding to the columns of a [`Nucleo`](crate::Nucleo) instance.
 #[derive(Debug)]
 pub struct MultiPattern {
     cols: Vec<(Pattern, Status)>,
@@ -30,7 +32,7 @@ impl Clone for MultiPattern {
 }
 
 impl MultiPattern {
-    /// Creates a multi pattern with `columns` empty column patterns.
+    /// Creates a new multi-pattern with `columns` empty column patterns.
     pub fn new(columns: usize) -> Self {
         Self {
             cols: vec![Default::default(); columns],
@@ -67,6 +69,7 @@ impl MultiPattern {
             .reparse(new_text, case_matching, normalization);
     }
 
+    /// Returns the pattern corresponding to the provided column.
     pub fn column_pattern(&self, column: usize) -> &Pattern {
         &self.cols[column].0
     }
@@ -85,8 +88,9 @@ impl MultiPattern {
         }
     }
 
+    /// Returns the score of the haystack corresponding to the pattern.
     pub fn score(&self, haystack: &[Utf32String], matcher: &mut Matcher) -> Option<u32> {
-        // TODO: wheight columns?
+        // TODO: weight columns?
         let mut score = 0;
         for ((pattern, _), haystack) in self.cols.iter().zip(haystack) {
             score += pattern.score(haystack.slice(..), matcher)?
@@ -94,6 +98,7 @@ impl MultiPattern {
         Some(score)
     }
 
+    /// Returns whether or not all of the patterns are empty.
     pub fn is_empty(&self) -> bool {
         self.cols.iter().all(|(pat, _)| pat.atoms.is_empty())
     }

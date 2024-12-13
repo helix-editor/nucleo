@@ -27,7 +27,7 @@ pub enum CaseMatching {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[non_exhaustive]
-/// How to handle unicode normalization,
+/// How to handle unicode normalization.
 pub enum Normalization {
     /// Characters never match their normalized version (`a != ä`).
     Never,
@@ -75,7 +75,7 @@ pub enum AtomKind {
     Exact,
 }
 
-/// A single pattern component that is matched with a single [`Matcher`] function
+/// A single pattern component that is matched with a single [`Matcher`] function.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Atom {
     /// Whether this pattern atom is a negative match.

@@ -26,6 +26,9 @@ level crate also need better documentation and will likely see a few minor API
 changes in the future.
 
 */
+
+#![warn(missing_docs)]
+
 use std::ops::{Bound, RangeBounds};
 use std::sync::atomic::{self, AtomicBool, Ordering};
 use std::sync::Arc;
@@ -48,14 +51,16 @@ mod tests;
 
 /// A match candidate stored in a [`Nucleo`] worker.
 pub struct Item<'a, T> {
+    /// A reference to the underlying item provided to the matcher.
     pub data: &'a T,
+    /// The representation of the data within the matcher.
     pub matcher_columns: &'a [Utf32String],
 }
 
 /// A handle that allows adding new items to a [`Nucleo`] worker.
 ///
-/// It's internally reference counted and can be cheaply cloned
-/// and sent across threads.
+/// An `Injector` is internally reference counted and can be cheaply
+/// cloned and sent across threads.
 pub struct Injector<T> {
     items: Arc<boxcar::Vec<T>>,
     notify: Arc<(dyn Fn() + Sync + Send)>,
@@ -71,7 +76,8 @@ impl<T> Clone for Injector<T> {
 }
 
 impl<T> Injector<T> {
-    /// Appends an element to the list of matched items.
+    /// Append an element to the list of matched items.
+    ///
     /// This function is lock-free and wait-free.
     pub fn push(&self, value: T, fill_columns: impl FnOnce(&T, &mut [Utf32String])) -> u32 {
         let idx = self.items.push(value, fill_columns);
@@ -79,9 +85,10 @@ impl<T> Injector<T> {
         idx
     }
 
-    /// Returns the total number of items injected in the matcher. This might
-    /// not match the number of items in the match snapshot (if the matcher
-    /// is still running)
+    /// Returns the total number of items injected in the matcher.
+    ///
+    /// This may not match the number of items in the match snapshot if the matcher
+    /// is still running.
     pub fn injected_items(&self) -> u32 {
         self.items.count()
     }
@@ -104,10 +111,16 @@ impl<T> Injector<T> {
     }
 }
 
-/// An [item](crate::Item) that was successfully matched by a [`Nucleo`] worker.
+/// A successful match computed by the [`Nucleo`] match.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Match {
+    /// The score of the match.
     pub score: u32,
+    /// The index of the match.
+    ///
+    /// The index is guaranteed to correspond to a valid item within the matcher and within the
+    /// same snapshot. Note that indices are invalidated of the matcher engine has been
+    /// [restarted](Nucleo::restart).
     pub idx: u32,
 }
 
@@ -120,8 +133,8 @@ pub struct Status {
     pub running: bool,
 }
 
-/// A snapshot represent the results of a [`Nucleo`] worker after
-/// finishing a [`tick`](Nucleo::tick).
+/// A represention of the results of a [`Nucleo`] worker after finishing a
+/// [`tick`](Nucleo::tick).
 pub struct Snapshot<T: Sync + Send + 'static> {
     item_count: u32,
     matches: Vec<Match>,
