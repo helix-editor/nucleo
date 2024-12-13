@@ -1,30 +1,28 @@
 /*!
-`nucleo` is a high level crate that provides a high level matcher API that
-provides a highly effective (parallel) matcher worker. It's designed to allow
-quickly plugging a fully featured (and faster) fzf/skim like fuzzy matcher into
-your TUI application.
+`nucleo` implements a high level matcher API that provides a highly effective
+(parallel) matcher worker. It's designed to allow quickly plugging a fully
+featured (and faster) fzf/skim like fuzzy matcher into your TUI application.
 
-It's designed to run matching on a background threadpool while providing a
-snapshot of the last complete match. That means the matcher can update the
-results live while the user is typing while never blocking the main UI thread
-(beyond a user provided timeout). Nucleo also supports fully concurrent lock-free
-(and wait-free) streaming of input items.
+Matching runs in a background threadpool while providing a snapshot of the last
+complete match on request. That means the matcher can update the results live while
+the user is typing, while never blocking the main UI thread (beyond a user provided
+timeout). Nucleo also supports fully concurrent lock-free (and wait-free) streaming
+of input items.
 
 The [`Nucleo`] struct serves as the main API entrypoint for this crate.
 
 # Status
 
-Nucleo is used in the helix-editor and therefore has a large user base with lots
-or real world testing. The core matcher implementation is considered complete
-and is unlikely to see major changes. The `nucleo-matcher` crate is finished and
-ready for widespread use, breaking changes should be very rare (a 1.0 release
-should not be far away).
+Nucleo is used in the [helix](https://crates.io/crates/helix) editor and therefore
+has a large user base with plenty of real world testing. The core matcher
+implementation is considered complete and is unlikely to see major changes.
+The `nucleo-matcher` crate is finished and ready for widespread use, breaking
+changes should be very rare (a `1.0` release should not be far away).
 
 While the high level `nucleo` crate also works well (and is also used in helix),
 there are still additional features that will be added in the future. The high
-level crate also need better documentation and will likely see a few minor API
+level crate also needs better documentation and will likely see a few minor API
 changes in the future.
-
 */
 
 #![warn(missing_docs)]
@@ -124,7 +122,7 @@ pub struct Match {
     pub idx: u32,
 }
 
-/// That status of a [`Nucleo`] worker after a match.
+/// The status of a [`Nucleo`] worker after a match.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Status {
     /// Whether the current snapshot has changed.
