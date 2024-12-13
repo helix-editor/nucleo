@@ -95,6 +95,7 @@ fn has_ascii_graphemes(string: &str) -> bool {
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum Utf32Str<'a> {
     /// A string represented as ASCII encoded bytes.
+    ///
     /// Correctness invariant: must only contain valid ASCII (`<= 127`)
     Ascii(&'a [u8]),
     /// A string represented as an array of unicode codepoints (basically UTF-32).
@@ -301,7 +302,8 @@ impl DoubleEndedIterator for Chars<'_> {
 /// See the API documentation for [`Utf32Str`] for more detail.
 pub enum Utf32String {
     /// A string represented as ASCII encoded bytes.
-    /// Correctness invariant: must only contain valid ASCII (<=127)
+    ///
+    /// Correctness invariant: must only contain valid ASCII (`<= 127`)
     Ascii(Box<str>),
     /// A string represented as an array of unicode codepoints (basically UTF-32).
     Unicode(Box<[char]>),

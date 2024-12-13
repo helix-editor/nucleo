@@ -1,9 +1,9 @@
 /// Normalize a Unicode character by converting Latin characters which are variants
-/// of ASCII characters to their latin equivalent.
+/// of ASCII characters to their Latin equivalents.
 ///
 /// Note that this method acts on single `char`s: if you want to perform full normalization, you
 /// should first split on graphemes, and then normalize each grapheme by normalizing the first
-/// `char` in the grapheme.
+/// `char` in each grapheme. See the [`graphemes`](super::graphemes) function for more detail.
 ///
 /// If a character does not normalize to a single ASCII character, no normalization is performed.
 ///
@@ -15,7 +15,7 @@
 /// - [Latin Extended Additional](https://en.wikipedia.org/wiki/Latin_Extended_Additional)
 /// - [Superscripts and Subscripts](https://en.wikipedia.org/wiki/Superscripts_and_Subscripts)
 ///
-/// If the character does not fall in this block, it is not normalized.
+/// If the character does not fall in any of these blocks, it is not normalized.
 ///
 /// # Example
 /// ```

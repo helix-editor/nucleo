@@ -29,8 +29,8 @@ pub struct Config {
 }
 
 impl Config {
-    /// The default config for nucleo, implemented as a constant since
-    /// Default::default can not be called in a const context
+    /// The default configuration for nucleo, implemented as a constant since
+    /// [`Default::default`] cannot be called in a `const` context.
     pub const DEFAULT: Self = {
         Config {
             delimiter_chars: b"/,:;|",

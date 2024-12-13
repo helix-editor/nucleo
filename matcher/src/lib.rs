@@ -183,9 +183,11 @@ impl Default for Matcher {
 }
 
 impl Matcher {
-    /// Creates a new matcher instance, note that this will eagerly allocate a
-    /// fairly large chunk of heap memory (around 135KB currently but subject to
-    /// change) so matchers should be reused if called often (like in a loop).
+    /// Creates a new matcher instance.
+    ///
+    /// This will eagerly allocate a fairly large chunk of heap memory (around 135KB
+    /// currently, but subject to change) so matchers should be reused if called often,
+    /// such as in a loop.
     pub fn new(config: Config) -> Self {
         Self {
             config,
