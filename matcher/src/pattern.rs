@@ -14,6 +14,7 @@ use crate::Utf32String;
 /// How to treat a case mismatch between two characters.
 pub enum CaseMatching {
     /// Characters never match their case folded version (`a != A`).
+    #[cfg_attr(not(feature = "unicode-casefold"), default)]
     Respect,
     /// Characters always match their case folded version (`a == A`).
     #[cfg(feature = "unicode-casefold")]
@@ -30,6 +31,7 @@ pub enum CaseMatching {
 /// How to handle unicode normalization,
 pub enum Normalization {
     /// Characters never match their normalized version (`a != ä`).
+    #[cfg_attr(not(feature = "unicode-normalization"), default)]
     Never,
     /// Acts like [`Never`](Normalization::Never) if any character in a pattern atom
     /// would need to be normalized. Otherwise normalization occurs (`a == ä` but `ä != a`).
