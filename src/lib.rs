@@ -1,31 +1,32 @@
 /*!
-`nucleo` is a high level crate that provides a high level matcher API that
-provides a highly effective (parallel) matcher worker. It's designed to allow
-quickly plugging a fully featured (and faster) fzf/skim like fuzzy matcher into
-your TUI application.
+`nucleo` implements a high level matcher API that provides a highly effective
+(parallel) matcher worker. It's designed to allow quickly plugging a fully
+featured (and faster) fzf/skim like fuzzy matcher into your TUI application.
 
-It's designed to run matching on a background threadpool while providing a
-snapshot of the last complete match. That means the matcher can update the
-results live while the user is typing while never blocking the main UI thread
-(beyond a user provided timeout). Nucleo also supports fully concurrent lock-free
-(and wait-free) streaming of input items.
+Matching runs in a background threadpool while providing a snapshot of the last
+complete match on request. That means the matcher can update the results live while
+the user is typing, while never blocking the main UI thread (beyond a user provided
+timeout). Nucleo also supports fully concurrent lock-free (and wait-free) streaming
+of input items.
 
 The [`Nucleo`] struct serves as the main API entrypoint for this crate.
 
 # Status
 
-Nucleo is used in the helix-editor and therefore has a large user base with lots
-or real world testing. The core matcher implementation is considered complete
-and is unlikely to see major changes. The `nucleo-matcher` crate is finished and
-ready for widespread use, breaking changes should be very rare (a 1.0 release
-should not be far away).
+Nucleo is used in the [helix](https://crates.io/crates/helix) editor and therefore
+has a large user base with plenty of real world testing. The core matcher
+implementation is considered complete and is unlikely to see major changes.
+The `nucleo-matcher` crate is finished and ready for widespread use, breaking
+changes should be very rare (a `1.0` release should not be far away).
 
 While the high level `nucleo` crate also works well (and is also used in helix),
 there are still additional features that will be added in the future. The high
-level crate also need better documentation and will likely see a few minor API
+level crate also needs better documentation and will likely see a few minor API
 changes in the future.
-
 */
+
+#![warn(missing_docs)]
+
 use std::ops::{Bound, RangeBounds};
 use std::sync::atomic::{self, AtomicBool, Ordering};
 use std::sync::Arc;
@@ -48,14 +49,16 @@ mod tests;
 
 /// A match candidate stored in a [`Nucleo`] worker.
 pub struct Item<'a, T> {
+    /// A reference to the underlying item provided to the matcher.
     pub data: &'a T,
+    /// The representation of the data within the matcher.
     pub matcher_columns: &'a [Utf32String],
 }
 
 /// A handle that allows adding new items to a [`Nucleo`] worker.
 ///
-/// It's internally reference counted and can be cheaply cloned
-/// and sent across threads.
+/// An `Injector` is internally reference counted and can be cheaply
+/// cloned and sent across threads.
 pub struct Injector<T> {
     items: Arc<boxcar::Vec<T>>,
     notify: Arc<(dyn Fn() + Sync + Send)>,
@@ -71,17 +74,36 @@ impl<T> Clone for Injector<T> {
 }
 
 impl<T> Injector<T> {
-    /// Appends an element to the list of matched items.
-    /// This function is lock-free and wait-free.
+    /// Appends an element to the list of match candidates.
+    ///
+    /// This function is lock-free and wait-free. The returned `u32` is the internal index which
+    /// has been assigned to the provided value and is guaranteed to be valid unless
+    /// [`Nucleo::restart`] has been called.
+    ///
+    /// The `fill_columns` closure is called to generate the representation of the pushed value
+    /// within the matcher engine. The first argument is a reference to the provided value, and the
+    /// second argument is a slice where each entry corresponds to a column within the [`Nucleo`]
+    /// instance from which this `Injector` was created.
+    ///
+    /// ## Example
+    /// If the matcher has exactly one column and the item type `T` is a `String`, an appropriate
+    /// `fill_columns` closure might look like
+    /// ```
+    /// # use nucleo::Utf32String;
+    /// let fill_columns = |s: &String, cols: &mut [Utf32String]| {
+    ///      cols[0] = (&**s).into();
+    /// };
+    /// ```
     pub fn push(&self, value: T, fill_columns: impl FnOnce(&T, &mut [Utf32String])) -> u32 {
         let idx = self.items.push(value, fill_columns);
         (self.notify)();
         idx
     }
 
-    /// Returns the total number of items injected in the matcher. This might
-    /// not match the number of items in the match snapshot (if the matcher
-    /// is still running)
+    /// Returns the total number of items injected in the matcher.
+    ///
+    /// This may not match the number of items in the match snapshot if the matcher
+    /// is still running.
     pub fn injected_items(&self) -> u32 {
         self.items.count()
     }
@@ -104,14 +126,20 @@ impl<T> Injector<T> {
     }
 }
 
-/// An [item](crate::Item) that was successfully matched by a [`Nucleo`] worker.
+/// A successful match computed by the [`Nucleo`] match.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Match {
+    /// The score of the match.
     pub score: u32,
+    /// The index of the match.
+    ///
+    /// The index is guaranteed to correspond to a valid item within the matcher and within the
+    /// same snapshot. Note that indices are invalidated of the matcher engine has been
+    /// [restarted](Nucleo::restart).
     pub idx: u32,
 }
 
-/// That status of a [`Nucleo`] worker after a match.
+/// The status of a [`Nucleo`] worker after a match.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Status {
     /// Whether the current snapshot has changed.
@@ -120,8 +148,8 @@ pub struct Status {
     pub running: bool,
 }
 
-/// A snapshot represent the results of a [`Nucleo`] worker after
-/// finishing a [`tick`](Nucleo::tick).
+/// A representation of the results of a [`Nucleo`] worker after finishing a
+/// [`tick`](Nucleo::tick).
 pub struct Snapshot<T: Sync + Send + 'static> {
     item_count: u32,
     matches: Vec<Match>,
@@ -210,7 +238,7 @@ impl<T: Sync + Send + 'static> Snapshot<T> {
         self.items.get(index)
     }
 
-    /// Return the matches corresponding to this snapshot.
+    /// Returns the matches corresponding to this snapshot.
     #[inline]
     pub fn matches(&self) -> &[Match] {
         &self.matches
@@ -257,6 +285,35 @@ impl State {
 
 /// A high level matcher worker that quickly computes matches in a background
 /// threadpool.
+///
+/// ## Example
+/// ```
+/// use std::sync::atomic::{AtomicBool, Ordering};
+/// use std::sync::Arc;
+/// use std::thread;
+///
+/// use nucleo::{Config, Nucleo};
+///
+/// static NEEDS_UPDATE: AtomicBool = AtomicBool::new(false);
+///
+/// // initialize a new matcher with default configuration and one column
+/// let matcher = Nucleo::new(
+///     Config::DEFAULT,
+///     Arc::new(|| NEEDS_UPDATE.store(true, Ordering::Relaxed)),
+///     None,
+///     1
+/// );
+///
+/// // get a handle to add items to the matcher
+/// let injector = matcher.injector();
+///
+/// // add items to the matcher
+/// thread::spawn(move || {
+///     injector.push("Hello, world!".to_string(), |s, cols| {
+///         cols[0] = (&**s).into();
+///     });
+/// });
+/// ```
 pub struct Nucleo<T: Sync + Send + 'static> {
     // the way the API is build we totally don't actually need these to be Arcs
     // but this lets us avoid some unsafe
@@ -268,19 +325,20 @@ pub struct Nucleo<T: Sync + Send + 'static> {
     items: Arc<boxcar::Vec<T>>,
     notify: Arc<(dyn Fn() + Sync + Send)>,
     snapshot: Snapshot<T>,
-    /// The pattern matched by this matcher. To update the match pattern
-    /// [`MultiPattern::reparse`](`pattern::MultiPattern::reparse`) should be used.
-    /// Note that the matcher worker will only become aware of the new pattern
-    /// after a call to [`tick`](Nucleo::tick).
+    /// The pattern matched by this matcher.
+    ///
+    /// To update the match pattern, use [`MultiPattern::reparse`]. Note that
+    /// the matcher worker will only become aware of the new pattern after a
+    /// call to [`tick`](Nucleo::tick).
     pub pattern: MultiPattern,
 }
 
 impl<T: Sync + Send + 'static> Nucleo<T> {
     /// Constructs a new `nucleo` worker threadpool with the provided `config`.
     ///
-    /// `notify` is called everytime new information is available and
+    /// `notify` is called whenever new information is available and
     /// [`tick`](Nucleo::tick) should be called. Note that `notify` is not
-    /// debounced, that should be handled by the downstream crate (for example
+    /// debounced; that should be handled by the downstream crate (for example,
     /// debouncing to only redraw at most every 1/60 seconds).
     ///
     /// If `None` is passed for the number of worker threads, nucleo will use
@@ -314,7 +372,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         }
     }
 
-    /// Returns the total number of active injectors
+    /// Returns the total number of active injectors.
     pub fn active_injectors(&self) -> usize {
         Arc::strong_count(&self.items)
             - self.state.matcher_item_refs()
@@ -322,6 +380,9 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
     }
 
     /// Returns a snapshot of the current matcher state.
+    ///
+    /// This method is very cheap and can be called every time a snapshot is required. The
+    /// snapshot will not change unless [`tick`](Nucleo::tick) is called.
     pub fn snapshot(&self) -> &Snapshot<T> {
         &self.snapshot
     }
@@ -359,10 +420,13 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         self.worker.lock().update_config(config)
     }
 
-    /// The main way to interact with the matcher, this should be called
-    /// regularly (for example each time a frame is rendered). To avoid
-    /// excessive redraws this method will wait `timeout` milliseconds for the
-    /// worker therad to finish. It is recommend to set the timeout to 10ms.
+    /// Update the internal state to reflect any changes from the background worker
+    /// threads.
+    ///
+    /// This is the main way to interact with the matcher, and should be called
+    /// regularly (for example each time a frame is rendered). To avoid excessive
+    /// redraws this method will wait `timeout` milliseconds for the
+    /// worker thread to finish. It is recommend to set the timeout to 10ms.
     pub fn tick(&mut self, timeout: u64) -> Status {
         self.should_notify.store(false, atomic::Ordering::Relaxed);
         let status = self.pattern.status();
