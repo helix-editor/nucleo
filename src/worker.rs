@@ -204,7 +204,20 @@ impl<T: Sync + Send + 'static> Worker<T> {
             self.process_new_items(&unmatched);
         }
 
-        let canceled = par_quicksort(
+        let canceled = self.sort_matches();
+        if canceled {
+            self.was_canceled = true;
+        } else {
+            self.matches
+                .truncate(self.matches.len() - take(unmatched.get_mut()) as usize);
+            if self.should_notify.load(atomic::Ordering::Relaxed) {
+                (self.notify)();
+            }
+        }
+    }
+
+    unsafe fn sort_matches(&mut self) -> bool {
+        par_quicksort(
             &mut self.matches,
             |match1, match2| {
                 if match1.score != match2.score {
@@ -238,17 +251,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
                 }
             },
             &self.canceled,
-        );
-
-        if canceled {
-            self.was_canceled = true;
-        } else {
-            self.matches
-                .truncate(self.matches.len() - take(unmatched.get_mut()) as usize);
-            if self.should_notify.load(atomic::Ordering::Relaxed) {
-                (self.notify)();
-            }
-        }
+        )
     }
 
     fn reset_matches(&mut self) {
