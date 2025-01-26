@@ -30,6 +30,7 @@ pub(crate) struct Worker<T: Sync + Send + 'static> {
     pub(crate) matches: Vec<Match>,
     pub(crate) pattern: MultiPattern,
     pub(crate) sort_results: bool,
+    pub(crate) reverse_items: bool,
     pub(crate) canceled: Arc<AtomicBool>,
     pub(crate) should_notify: Arc<AtomicBool>,
     pub(crate) was_canceled: bool,
@@ -50,6 +51,9 @@ impl<T: Sync + Send + 'static> Worker<T> {
     }
     pub(crate) fn sort_results(&mut self, sort_results: bool) {
         self.sort_results = sort_results;
+    }
+    pub(crate) fn reverse_items(&mut self, reverse_items: bool) {
+        self.reverse_items = reverse_items;
     }
 
     pub(crate) fn new(
@@ -76,6 +80,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
             // just a placeholder
             pattern: MultiPattern::new(cols as usize),
             sort_results: true,
+            reverse_items: false,
             canceled: Arc::new(AtomicBool::new(false)),
             should_notify: Arc::new(AtomicBool::new(false)),
             was_canceled: false,
@@ -254,7 +259,11 @@ impl<T: Sync + Send + 'static> Worker<T> {
                         .map(|haystack| haystack.len() as u32)
                         .sum();
                     if len1 == len2 {
-                        match1.idx < match2.idx
+                        if self.reverse_items {
+                            match2.idx < match1.idx
+                        } else {
+                            match1.idx < match2.idx
+                        }
                     } else {
                         len1 < len2
                     }
@@ -271,7 +280,11 @@ impl<T: Sync + Send + 'static> Worker<T> {
                     if match2.idx == u32::MAX {
                         return true;
                     }
-                    match1.idx < match2.idx
+                    if self.reverse_items {
+                        match2.idx < match1.idx
+                    } else {
+                        match1.idx < match2.idx
+                    }
                 },
                 &self.canceled,
             )

@@ -365,6 +365,12 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
         self.worker.lock().sort_results(sort_results)
     }
 
+    // Set whether the matcher should reverse the order of the input.
+    // Defaults to false.
+    pub fn reverse_items(&mut self, reverse_items: bool) {
+        self.worker.lock().reverse_items(reverse_items)
+    }
+
     /// The main way to interact with the matcher, this should be called
     /// regularly (for example each time a frame is rendered). To avoid
     /// excessive redraws this method will wait `timeout` milliseconds for the
