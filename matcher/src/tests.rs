@@ -387,6 +387,38 @@ fn test_substring() {
 }
 
 #[test]
+fn test_substring_case_sensitive() {
+    assert_matches(
+        &[Substring, Prefix],
+        false,
+        true,
+        false,
+        false,
+        &[
+            (
+                "Foo bar baz",
+                "Foo",
+                &[0, 1, 2],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+            (
+                "Fȫô bar baz",
+                "Fȫô",
+                &[0, 1, 2],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+            (
+                "Foo ฿ar baz",
+                "Foo",
+                &[0, 1, 2],
+                BONUS_BOUNDARY_WHITE * (BONUS_FIRST_CHAR_MULTIPLIER + 2),
+            ),
+        ],
+    );
+    assert_not_matches_with(false, true, &[Substring, Prefix], &[("foo bar baz", "Foo")]);
+}
+
+#[test]
 fn test_fuzzy_case_sensitive() {
     assert_matches(
         &[FuzzyGreedy, FuzzyOptimal],
