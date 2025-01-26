@@ -29,6 +29,7 @@ pub(crate) struct Worker<T: Sync + Send + 'static> {
     matchers: Matchers,
     pub(crate) matches: Vec<Match>,
     pub(crate) pattern: MultiPattern,
+    pub(crate) sort_results: bool,
     pub(crate) canceled: Arc<AtomicBool>,
     pub(crate) should_notify: Arc<AtomicBool>,
     pub(crate) was_canceled: bool,
@@ -46,6 +47,9 @@ impl<T: Sync + Send + 'static> Worker<T> {
         for matcher in self.matchers.0.iter_mut() {
             matcher.get_mut().config = config.clone();
         }
+    }
+    pub(crate) fn sort_results(&mut self, sort_results: bool) {
+        self.sort_results = sort_results;
     }
 
     pub(crate) fn new(
@@ -71,6 +75,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
             matches: Vec::new(),
             // just a placeholder
             pattern: MultiPattern::new(cols as usize),
+            sort_results: true,
             canceled: Arc::new(AtomicBool::new(false)),
             should_notify: Arc::new(AtomicBool::new(false)),
             was_canceled: false,
@@ -220,41 +225,57 @@ impl<T: Sync + Send + 'static> Worker<T> {
     }
 
     unsafe fn sort_matches(&mut self) -> bool {
-        par_quicksort(
-            &mut self.matches,
-            |match1, match2| {
-                if match1.score != match2.score {
-                    return match1.score > match2.score;
-                }
-                if match1.idx == u32::MAX {
-                    return false;
-                }
-                if match2.idx == u32::MAX {
-                    return true;
-                }
-                // the tie breaker is comparatively rarely needed so we keep it
-                // in a branch especially because we need to access the items
-                // array here which involves some pointer chasing
-                let item1 = self.items.get_unchecked(match1.idx);
-                let item2 = &self.items.get_unchecked(match2.idx);
-                let len1: u32 = item1
-                    .matcher_columns
-                    .iter()
-                    .map(|haystack| haystack.len() as u32)
-                    .sum();
-                let len2 = item2
-                    .matcher_columns
-                    .iter()
-                    .map(|haystack| haystack.len() as u32)
-                    .sum();
-                if len1 == len2 {
+        if self.sort_results {
+            par_quicksort(
+                &mut self.matches,
+                |match1, match2| {
+                    if match1.score != match2.score {
+                        return match1.score > match2.score;
+                    }
+                    if match1.idx == u32::MAX {
+                        return false;
+                    }
+                    if match2.idx == u32::MAX {
+                        return true;
+                    }
+                    // the tie breaker is comparatively rarely needed so we keep it
+                    // in a branch especially because we need to access the items
+                    // array here which involves some pointer chasing
+                    let item1 = self.items.get_unchecked(match1.idx);
+                    let item2 = &self.items.get_unchecked(match2.idx);
+                    let len1: u32 = item1
+                        .matcher_columns
+                        .iter()
+                        .map(|haystack| haystack.len() as u32)
+                        .sum();
+                    let len2 = item2
+                        .matcher_columns
+                        .iter()
+                        .map(|haystack| haystack.len() as u32)
+                        .sum();
+                    if len1 == len2 {
+                        match1.idx < match2.idx
+                    } else {
+                        len1 < len2
+                    }
+                },
+                &self.canceled,
+            )
+        } else {
+            par_quicksort(
+                &mut self.matches,
+                |match1, match2| {
+                    if match1.idx == u32::MAX {
+                        return false;
+                    }
+                    if match2.idx == u32::MAX {
+                        return true;
+                    }
                     match1.idx < match2.idx
-                } else {
-                    len1 < len2
-                }
-            },
-            &self.canceled,
-        )
+                },
+                &self.canceled,
+            )
+        }
     }
 
     fn reset_matches(&mut self) {
