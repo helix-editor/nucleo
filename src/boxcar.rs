@@ -33,7 +33,7 @@ const BUCKETS: u32 = u32::BITS - SKIP_BUCKET;
 const MAX_ENTRIES: u32 = u32::MAX - SKIP;
 
 /// A lock-free, append-only vector.
-pub(crate) struct Vec<T> {
+pub struct Vec<T> {
     /// a counter used to retrieve a unique index to push to.
     ///
     /// this value may be more than the true length as it will
@@ -144,7 +144,7 @@ impl<T> Vec<T> {
         let location = Location::of(index);
 
         // eagerly allocate the next bucket if we are close to the end of this one
-        if index == (location.bucket_len - (location.bucket_len >> 3)) {
+        if location.entry == (location.bucket_len - (location.bucket_len >> 3)) {
             if let Some(next_bucket) = self.buckets.get(location.bucket as usize + 1) {
                 Vec::get_or_alloc(next_bucket, location.bucket_len << 1, self.columns);
             }
@@ -180,6 +180,83 @@ impl<T> Vec<T> {
         }
 
         index
+    }
+
+    /// Extends the vector by appending multiple elements at once.
+    pub fn extend<I>(&self, values: I, fill_columns: impl Fn(&T, &mut [Utf32String]))
+    where
+        I: IntoIterator<Item = T> + ExactSizeIterator,
+    {
+        let count: u32 = values
+            .len()
+            .try_into()
+            .expect("overflowed maximum capacity");
+        if count == 0 {
+            return;
+        }
+
+        // Reserve all indices at once
+        let start_index: u32 = self
+            .inflight
+            .fetch_add(u64::from(count), Ordering::Release)
+            .try_into()
+            .expect("overflowed maximum capacity");
+
+        // Compute first and last locations
+        let start_location = Location::of(start_index);
+        let end_location = Location::of(start_index + count - 1);
+
+        // Allocate necessary buckets upfront
+        if start_location.bucket != end_location.bucket {
+            for bucket in start_location.bucket..=end_location.bucket {
+                if let Some(bucket_ptr) = self.buckets.get(bucket as usize) {
+                    Vec::get_or_alloc(bucket_ptr, Location::bucket_len(bucket), self.columns);
+                }
+            }
+        }
+
+        let mut bucket = unsafe { self.buckets.get_unchecked(start_location.bucket as usize) };
+        let mut entries = bucket.entries.load(Ordering::Acquire);
+        if entries.is_null() {
+            entries = Vec::get_or_alloc(
+                bucket,
+                Location::bucket_len(start_location.bucket),
+                self.columns,
+            );
+        }
+        // Route each value to its corresponding bucket
+        let mut location;
+        for (i, v) in values.into_iter().enumerate() {
+            location =
+                Location::of(start_index + u32::try_from(i).expect("overflowed maximum capacity"));
+
+            unsafe {
+                let entry = Bucket::get(entries, location.entry, self.columns);
+
+                // Initialize matcher columns
+                for col in Entry::matcher_cols_raw(entry, self.columns) {
+                    col.get().write(MaybeUninit::new(Utf32String::default()));
+                }
+                fill_columns(&v, Entry::matcher_cols_mut(entry, self.columns));
+                (*entry).slot.get().write(MaybeUninit::new(v));
+                (*entry).active.store(true, Ordering::Release);
+            }
+
+            // if we are at the end of the bucket, move on to the next one
+            if location.entry == location.bucket_len - 1 {
+                // safety: `location.bucket + 1` is always in bounds
+                bucket = unsafe { self.buckets.get_unchecked((location.bucket + 1) as usize) };
+                entries = bucket.entries.load(Ordering::Acquire);
+
+                if entries.is_null() {
+                    entries = Vec::get_or_alloc(
+                        bucket,
+                        Location::bucket_len(location.bucket + 1),
+                        self.columns,
+                    );
+                }
+            }
+        }
     }
 
     /// race to initialize a bucket
