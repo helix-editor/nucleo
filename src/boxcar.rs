@@ -144,7 +144,7 @@ impl<T> Vec<T> {
         let location = Location::of(index);
 
         // eagerly allocate the next bucket if we are close to the end of this one
-        if index == (location.bucket_len - (location.bucket_len >> 3)) {
+        if location.entry == (location.bucket_len - (location.bucket_len >> 3)) {
             if let Some(next_bucket) = self.buckets.get(location.bucket as usize + 1) {
                 Vec::get_or_alloc(next_bucket, location.bucket_len << 1, self.columns);
             }
