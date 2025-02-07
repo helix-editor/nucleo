@@ -33,7 +33,7 @@ const BUCKETS: u32 = u32::BITS - SKIP_BUCKET;
 const MAX_ENTRIES: u32 = u32::MAX - SKIP;
 
 /// A lock-free, append-only vector.
-pub struct Vec<T> {
+pub(crate) struct Vec<T> {
     /// a counter used to retrieve a unique index to push to.
     ///
     /// this value may be more than the true length as it will
@@ -144,7 +144,7 @@ impl<T> Vec<T> {
         let location = Location::of(index);
 
         // eagerly allocate the next bucket if we are close to the end of this one
-        if location.entry == (location.bucket_len - (location.bucket_len >> 3)) {
+        if index == (location.bucket_len - (location.bucket_len >> 3)) {
             if let Some(next_bucket) = self.buckets.get(location.bucket as usize + 1) {
                 Vec::get_or_alloc(next_bucket, location.bucket_len << 1, self.columns);
             }

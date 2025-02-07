@@ -38,7 +38,7 @@ use crate::pattern::MultiPattern;
 use crate::worker::Worker;
 pub use nucleo_matcher::{chars, Config, Matcher, Utf32Str, Utf32String};
 
-pub mod boxcar;
+mod boxcar;
 mod par_sort;
 pub mod pattern;
 mod worker;
