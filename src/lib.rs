@@ -83,7 +83,7 @@ impl<T> Injector<T> {
     /// This function is lock-free and wait-free.
     ///
     /// You should favor this function over `push` if at least one of the following is true:
-    /// - the number of items you're adding can be computed beforehands and is typically larger
+    /// - the number of items you're adding can be computed beforehand and is typically larger
     ///     than 1k
     /// - you're able to batch incoming items
     /// - you're adding items from multiple threads concurrently (this function results in less
