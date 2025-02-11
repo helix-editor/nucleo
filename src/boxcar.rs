@@ -209,7 +209,7 @@ impl<T> Vec<T> {
 
         // Compute first and last locations
         let start_location = Location::of(start_index);
-        let end_location = Location::of(start_index + count - 1);
+        let end_location = Location::of(start_index + count);
 
         // Eagerly allocate the next bucket if the last entry is close to the end of its next bucket
         let alloc_entry = end_location.alloc_next_bucket_entry();
@@ -656,6 +656,7 @@ impl Location {
     fn should_alloc_next_bucket(&self) -> bool {
         self.entry == self.alloc_next_bucket_entry()
     }
+}
 
 #[cfg(test)]
 mod tests {
@@ -691,5 +692,100 @@ mod tests {
         assert_eq!(max.bucket, BUCKETS - 1);
         assert_eq!(max.bucket_len, 1 << 31);
         assert_eq!(max.entry, (1 << 31) - 1);
+    }
+
+    #[test]
+    fn extend_unique_bucket() {
+        let vec = Vec::<u32>::with_capacity(1, 1);
+        vec.extend(0..10, |_, _| {});
+        assert_eq!(vec.count(), 10);
+        for i in 0..10 {
+            assert_eq!(*vec.get(i).unwrap().data, i);
+        }
+        assert!(vec.get(10).is_none());
+    }
+
+    #[test]
+    fn extend_over_two_buckets() {
+        let vec = Vec::<u32>::with_capacity(1, 1);
+        vec.extend(0..100, |_, _| {});
+        assert_eq!(vec.count(), 100);
+        for i in 0..100 {
+            assert_eq!(*vec.get(i).unwrap().data, i);
+        }
+        assert!(vec.get(100).is_none());
+    }
+
+    #[test]
+    fn extend_over_more_than_two_buckets() {
+        let vec = Vec::<u32>::with_capacity(1, 1);
+        vec.extend(0..1000, |_, _| {});
+        assert_eq!(vec.count(), 1000);
+        for i in 0..1000 {
+            assert_eq!(*vec.get(i).unwrap().data, i);
+        }
+        assert!(vec.get(1000).is_none());
+    }
+
+    #[test]
+    /// test that ExactSizeIterator returning incorrect length is caught (0 AND more than reported)
+    fn extend_with_incorrect_reported_len_is_caught() {
+        struct IncorrectLenIter {
+            len: usize,
+            iter: std::ops::Range<u32>,
+        }
+
+        impl Iterator for IncorrectLenIter {
+            type Item = u32;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                self.iter.next()
+            }
+        }
+
+        impl ExactSizeIterator for IncorrectLenIter {
+            fn len(&self) -> usize {
+                self.len
+            }
+        }
+
+        let vec = Vec::<u32>::with_capacity(1, 1);
+        let iter = IncorrectLenIter {
+            len: 10,
+            iter: (0..12),
+        };
+        // this should panic
+        assert!(std::panic::catch_unwind(|| vec.extend(iter, |_, _| {})).is_err());
+
+        let vec = Vec::<u32>::with_capacity(1, 1);
+        let iter = IncorrectLenIter {
+            len: 12,
+            iter: (0..10),
+        };
+        // this shouldn't panic and should just ignore the extra elements
+        assert!(std::panic::catch_unwind(|| vec.extend(iter, |_, _| {})).is_ok());
+        // we should reserve 12 elements but only 10 should be present
+        assert_eq!(vec.count(), 12);
+        for i in 0..10 {
+            assert_eq!(*vec.get(i).unwrap().data, i);
+        }
+        assert!(vec.get(10).is_none());
+
+        let vec = Vec::<u32>::with_capacity(1, 1);
+        let iter = IncorrectLenIter {
+            len: 0,
+            iter: (0..2),
+        };
+        // this should panic
+        assert!(std::panic::catch_unwind(|| vec.extend(iter, |_, _| {})).is_err());
+    }
+
+    // test |values| does not fit in the boxcar
+    #[test]
+    fn extend_over_max_capacity() {
+        let vec = Vec::<u32>::with_capacity(1, 1);
+        let count = MAX_ENTRIES as usize + 2;
+        let iter = std::iter::repeat(0).take(count);
+        assert!(std::panic::catch_unwind(|| vec.extend(iter, |_, _| {})).is_err());
     }
 }
