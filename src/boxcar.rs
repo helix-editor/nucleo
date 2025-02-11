@@ -23,6 +23,7 @@
 
 use std::alloc::Layout;
 use std::cell::UnsafeCell;
+use std::fmt::Debug;
 use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering};
 use std::{ptr, slice};
@@ -192,6 +193,10 @@ impl<T> Vec<T> {
             .try_into()
             .expect("overflowed maximum capacity");
         if count == 0 {
+            assert!(
+                values.into_iter().next().is_none(),
+                "The `values` variable reported incorrect length."
+            );
             return;
         }
 
@@ -206,12 +211,14 @@ impl<T> Vec<T> {
         let start_location = Location::of(start_index);
         let end_location = Location::of(start_index + count - 1);
 
-        // Allocate necessary buckets upfront
-        if start_location.bucket != end_location.bucket {
-            for bucket in start_location.bucket..=end_location.bucket {
-                if let Some(bucket_ptr) = self.buckets.get(bucket as usize) {
-                    Vec::get_or_alloc(bucket_ptr, Location::bucket_len(bucket), self.columns);
-                }
+        // Eagerly allocate the next bucket if the last entry is close to the end of its next bucket
+        let alloc_entry = end_location.alloc_next_bucket_entry();
+        if end_location.entry >= alloc_entry
+            && (start_location.bucket != end_location.bucket || start_location.entry <= alloc_entry)
+        {
+            // This might be the last bucket, hence the check
+            if let Some(next_bucket) = self.buckets.get(end_location.bucket as usize + 1) {
+                Vec::get_or_alloc(next_bucket, end_location.bucket_len << 1, self.columns);
             }
         }
 
@@ -226,9 +233,29 @@ impl<T> Vec<T> {
         }
         // Route each value to its corresponding bucket
         let mut location;
+        let count = count as usize;
         for (i, v) in values.into_iter().enumerate() {
+            // ExactSizeIterator is a safe trait that can have bugs/lie about it's size.
+            // Unsafe code cannot rely on the reported length being correct.
+            assert!(i < count);
+
             location =
                 Location::of(start_index + u32::try_from(i).expect("overflowed maximum capacity"));
+
+            // if we're starting to insert into a different bucket, allocate it beforehand
+            if location.entry == 0 && i != 0 {
+                // safety: `location.bucket` is always in bounds
+                bucket = unsafe { self.buckets.get_unchecked(location.bucket as usize) };
+                entries = bucket.entries.load(Ordering::Acquire);
+
+                if entries.is_null() {
+                    entries = Vec::get_or_alloc(
+                        bucket,
+                        Location::bucket_len(location.bucket),
+                        self.columns,
+                    );
+                }
+            }
 
             unsafe {
                 let entry = Bucket::get(entries, location.entry, self.columns);
@@ -240,21 +267,6 @@ impl<T> Vec<T> {
                 fill_columns(&v, Entry::matcher_cols_mut(entry, self.columns));
                 (*entry).slot.get().write(MaybeUninit::new(v));
                 (*entry).active.store(true, Ordering::Release);
-            }
-
-            // if we are at the end of the bucket, move on to the next one
-            if location.entry == location.bucket_len - 1 {
-                // safety: `location.bucket + 1` is always in bounds
-                bucket = unsafe { self.buckets.get_unchecked((location.bucket + 1) as usize) };
-                entries = bucket.entries.load(Ordering::Acquire);
-
-                if entries.is_null() {
-                    entries = Vec::get_or_alloc(
-                        bucket,
-                        Location::bucket_len(location.bucket + 1),
-                        self.columns,
-                    );
-                }
             }
         }
     }
@@ -634,7 +646,15 @@ impl Location {
     fn bucket_len(bucket: u32) -> u32 {
         1 << (bucket + SKIP_BUCKET)
     }
-}
+
+    /// The entry index at which the next bucket should be pre-allocated.
+    fn alloc_next_bucket_entry(&self) -> u32 {
+        self.bucket_len - (self.bucket_len >> 3)
+    }
+
+    fn should_alloc_next_bucket(&self) -> bool {
+        self.entry == (self.bucket_len - (self.bucket_len >> 3))
+    }
 
 #[cfg(test)]
 mod tests {
