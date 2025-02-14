@@ -85,8 +85,38 @@ fn case_matching() {
 
 #[test]
 fn escape() {
+    // escapes only impact whitespace
     let pat = Atom::parse("foo\\ bar", CaseMatching::Smart, Normalization::Smart);
     assert_eq!(pat.needle.to_string(), "foo bar");
+    let pat = Atom::parse("foo\\\tbar", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "foo\tbar");
+    let pat = Atom::parse("\\", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "\\");
+    let pat = Atom::parse("\\ ", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), " ");
+    let pat = Atom::parse("\\\\", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "\\\\");
+
+    // some unicode checks
+    let pat = Atom::parse("foö\\ bar", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "foö bar");
+    let pat = Atom::parse("ö\\ ", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "ö ");
+    let pat = Atom::parse("foö\\\\ bar", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "foö\\ bar");
+    let pat = Atom::parse("foo\\　bar", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "foo　bar"); // double-width IDEOGRAPHIC SPACE
+    let pat = Atom::parse("ö\\b", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "ö\\b");
+    let pat = Atom::parse("ö\\\\", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "ö\\\\");
+    let pat = Atom::parse("\\!^foö\\$", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "!^foö$");
+    assert_eq!(pat.kind, AtomKind::Fuzzy);
+    let pat = Atom::parse("!\\^foö\\$", CaseMatching::Smart, Normalization::Smart);
+    assert_eq!(pat.needle.to_string(), "^foö$");
+    assert_eq!(pat.kind, AtomKind::Substring);
+
     let pat = Atom::parse("\\!foo", CaseMatching::Smart, Normalization::Smart);
     assert_eq!(pat.needle.to_string(), "!foo");
     assert_eq!(pat.kind, AtomKind::Fuzzy);
