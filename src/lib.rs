@@ -79,6 +79,23 @@ impl<T> Injector<T> {
         idx
     }
 
+    /// Appends multiple elements to the list of matched items.
+    /// This function is lock-free and wait-free.
+    ///
+    /// You should favor this function over `push` if at least one of the following is true:
+    /// - the number of items you're adding can be computed beforehand and is typically larger
+    ///     than 1k
+    /// - you're able to batch incoming items
+    /// - you're adding items from multiple threads concurrently (this function results in less
+    ///     contention)
+    pub fn extend<I>(&self, values: I, fill_columns: impl Fn(&T, &mut [Utf32String]))
+    where
+        I: IntoIterator<Item = T> + ExactSizeIterator,
+    {
+        self.items.extend(values, fill_columns);
+        (self.notify)();
+    }
+
     /// Returns the total number of items injected in the matcher. This might
     /// not match the number of items in the match snapshot (if the matcher
     /// is still running)
