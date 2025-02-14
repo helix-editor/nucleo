@@ -651,11 +651,6 @@ impl Location {
     fn alloc_next_bucket_entry(&self) -> u32 {
         self.bucket_len - (self.bucket_len >> 3)
     }
-
-    /// Whether the next bucket should be pre-allocated given the current position.
-    fn should_alloc_next_bucket(&self) -> bool {
-        self.entry == self.alloc_next_bucket_entry()
-    }
 }
 
 #[cfg(test)]
