@@ -367,9 +367,7 @@ impl Utf32String {
             Bound::Unbounded => self.len() as u32,
         };
         match self {
-            Self::Ascii(bytes) => {
-                Utf32Str::Ascii(&bytes.as_bytes()[start as usize..end as usize])
-            }
+            Self::Ascii(bytes) => Utf32Str::Ascii(&bytes.as_bytes()[start as usize..end as usize]),
             Self::Unicode(codepoints) => {
                 Utf32Str::Unicode(&codepoints[start as usize..end as usize])
             }
