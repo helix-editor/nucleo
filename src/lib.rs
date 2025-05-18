@@ -63,7 +63,7 @@ pub struct Injector<T> {
 
 impl<T> Clone for Injector<T> {
     fn clone(&self) -> Self {
-        Injector {
+        Self {
             items: self.items.clone(),
             notify: self.notify.clone(),
         }
@@ -258,17 +258,17 @@ enum State {
 impl State {
     fn matcher_item_refs(self) -> usize {
         match self {
-            State::Cleared => 1,
-            State::Init | State::Fresh => 2,
+            Self::Cleared => 1,
+            Self::Init | Self::Fresh => 2,
         }
     }
 
     fn canceled(self) -> bool {
-        self != State::Fresh
+        self != Self::Fresh
     }
 
     fn cleared(self) -> bool {
-        self != State::Fresh
+        self != Self::Fresh
     }
 }
 

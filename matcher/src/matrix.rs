@@ -24,7 +24,7 @@ struct MatrixLayout<C: Char> {
     _phantom: PhantomData<C>,
 }
 impl<C: Char> MatrixLayout<C> {
-    fn new(haystack_len: usize, needle_len: usize) -> MatrixLayout<C> {
+    fn new(haystack_len: usize, needle_len: usize) -> Self {
         assert!(haystack_len >= needle_len);
         assert!(haystack_len <= u32::MAX as usize);
         let mut layout = Layout::from_size_align(0, 1).unwrap();
@@ -45,7 +45,7 @@ impl<C: Char> MatrixLayout<C> {
         (layout, score_off) = layout.extend(score_layout).unwrap();
         let matrix_off;
         (layout, matrix_off) = layout.extend(matrix_layout).unwrap();
-        MatrixLayout {
+        Self {
             haystack_len,
             needle_len,
             layout,
@@ -151,7 +151,7 @@ impl MatrixSlab {
         let Some(ptr) = NonNull::new(ptr) else {
             handle_alloc_error(layout)
         };
-        MatrixSlab(ptr.cast())
+        Self(ptr.cast())
     }
 
     pub(crate) fn alloc<C: Char>(

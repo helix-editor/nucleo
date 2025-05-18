@@ -64,7 +64,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
         let matchers = (0..worker_threads)
             .map(|_| UnsafeCell::new(nucleo_matcher::Matcher::new(config.clone())))
             .collect();
-        let worker = Worker {
+        let worker = Self {
             running: false,
             matchers: Matchers(matchers),
             last_snapshot: 0,

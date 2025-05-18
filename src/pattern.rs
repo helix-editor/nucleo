@@ -56,7 +56,7 @@ impl MultiPattern {
                 .0
                 .atoms
                 .last()
-                .map_or(true, |last| !last.negative)
+                .is_none_or(|last| !last.negative)
         {
             self.cols[column].1 = Status::Update;
         } else {
