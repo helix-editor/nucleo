@@ -134,7 +134,7 @@ impl<'a> Utf32Str<'a> {
     /// Creates a slice with a string that contains the characters in
     /// the specified **character range**.
     #[inline]
-    pub fn slice(self, range: impl RangeBounds<usize>) -> Utf32Str<'a> {
+    pub fn slice(self, range: impl RangeBounds<usize>) -> Self {
         let start = match range.start_bound() {
             Bound::Included(&start) => start,
             Bound::Excluded(&start) => start + 1,
@@ -186,7 +186,7 @@ impl<'a> Utf32Str<'a> {
     /// Same as `slice` but accepts a u32 range for convenience since
     /// those are the indices returned by the matcher.
     #[inline]
-    pub fn slice_u32(self, range: impl RangeBounds<u32>) -> Utf32Str<'a> {
+    pub fn slice_u32(self, range: impl RangeBounds<u32>) -> Self {
         let start = match range.start_bound() {
             Bound::Included(&start) => start as usize,
             Bound::Excluded(&start) => start as usize + 1,
@@ -318,8 +318,8 @@ impl Utf32String {
     #[inline]
     pub fn len(&self) -> usize {
         match self {
-            Utf32String::Unicode(codepoints) => codepoints.len(),
-            Utf32String::Ascii(ascii_bytes) => ascii_bytes.len(),
+            Self::Unicode(codepoints) => codepoints.len(),
+            Self::Ascii(ascii_bytes) => ascii_bytes.len(),
         }
     }
 
@@ -327,8 +327,8 @@ impl Utf32String {
     #[inline]
     pub fn is_empty(&self) -> bool {
         match self {
-            Utf32String::Unicode(codepoints) => codepoints.is_empty(),
-            Utf32String::Ascii(ascii_bytes) => ascii_bytes.is_empty(),
+            Self::Unicode(codepoints) => codepoints.is_empty(),
+            Self::Ascii(ascii_bytes) => ascii_bytes.is_empty(),
         }
     }
 
@@ -347,8 +347,8 @@ impl Utf32String {
             Bound::Unbounded => self.len(),
         };
         match self {
-            Utf32String::Ascii(bytes) => Utf32Str::Ascii(&bytes.as_bytes()[start..end]),
-            Utf32String::Unicode(codepoints) => Utf32Str::Unicode(&codepoints[start..end]),
+            Self::Ascii(bytes) => Utf32Str::Ascii(&bytes.as_bytes()[start..end]),
+            Self::Unicode(codepoints) => Utf32Str::Unicode(&codepoints[start..end]),
         }
     }
 
@@ -367,10 +367,10 @@ impl Utf32String {
             Bound::Unbounded => self.len() as u32,
         };
         match self {
-            Utf32String::Ascii(bytes) => {
+            Self::Ascii(bytes) => {
                 Utf32Str::Ascii(&bytes.as_bytes()[start as usize..end as usize])
             }
-            Utf32String::Unicode(codepoints) => {
+            Self::Unicode(codepoints) => {
                 Utf32Str::Unicode(&codepoints[start as usize..end as usize])
             }
         }
