@@ -71,7 +71,7 @@ impl<T> Clone for Injector<T> {
 }
 
 impl<T> Injector<T> {
-    /// Appends an element to the list of matched items.
+    /// Appends an element to the list of candidates.
     /// This function is lock-free and wait-free.
     pub fn push(&self, value: T, fill_columns: impl FnOnce(&T, &mut [Utf32String])) -> u32 {
         let idx = self.items.push(value, fill_columns);
@@ -79,7 +79,7 @@ impl<T> Injector<T> {
         idx
     }
 
-    /// Appends multiple elements to the list of matched items.
+    /// Appends multiple elements to the list of candidates.
     /// This function is lock-free and wait-free.
     ///
     /// You should favor this function over `push` if at least one of the following is true:
@@ -295,8 +295,8 @@ pub struct Nucleo<T: Sync + Send + 'static> {
 impl<T: Sync + Send + 'static> Nucleo<T> {
     /// Constructs a new `nucleo` worker threadpool with the provided `config`.
     ///
-    /// `notify` is called everytime new information is available and
-    /// [`tick`](Nucleo::tick) should be called. Note that `notify` is not
+    /// `notify` is called every time a candidate item is pushed to the injector,
+    /// which means [`tick`](Nucleo::tick) should be called. Note that `notify` is not
     /// debounced, that should be handled by the downstream crate (for example
     /// debouncing to only redraw at most every 1/60 seconds).
     ///
