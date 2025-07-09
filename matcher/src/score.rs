@@ -67,7 +67,7 @@ impl Config {
         } else if class == CharClass::Whitespace {
             self.bonus_boundary_white
         } else if class == CharClass::NonWord {
-            return BONUS_NON_WORD;
+            BONUS_NON_WORD
         } else {
             0
         }
