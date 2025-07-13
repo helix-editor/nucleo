@@ -302,7 +302,7 @@ impl Atom {
     /// *Note:*  The `ignore_case` setting is overwritten to match the casing of
     /// each pattern atom.
     ///
-    /// Returns [None] if `needle` from `matcher` is longer than `haystack`
+    /// Returns `None` if `needle` from `matcher` is longer than `haystack`
     pub fn score(&self, haystack: Utf32Str<'_>, matcher: &mut Matcher) -> Option<u16> {
         matcher.config.ignore_case = self.ignore_case;
         matcher.config.normalize = self.normalize;
