@@ -32,7 +32,7 @@ impl Config {
     /// The default config for nucleo, implemented as a constant since
     /// Default::default can not be called in a const context
     pub const DEFAULT: Self = {
-        Config {
+        Self {
             delimiter_chars: b"/,:;|",
             bonus_boundary_white: BONUS_BOUNDARY + 2,
             bonus_boundary_delimiter: BONUS_BOUNDARY + 1,

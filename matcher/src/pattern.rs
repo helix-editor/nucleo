@@ -101,8 +101,8 @@ impl Atom {
         normalize: Normalization,
         kind: AtomKind,
         escape_whitespace: bool,
-    ) -> Atom {
-        Atom::new_inner(needle, case, normalize, kind, escape_whitespace, false)
+    ) -> Self {
+        Self::new_inner(needle, case, normalize, kind, escape_whitespace, false)
     }
 
     fn new_inner(
@@ -112,7 +112,7 @@ impl Atom {
         kind: AtomKind,
         escape_whitespace: bool,
         append_dollar: bool,
-    ) -> Atom {
+    ) -> Self {
         let mut ignore_case;
         let mut normalize;
         #[cfg(feature = "unicode-normalization")]
@@ -227,7 +227,7 @@ impl Atom {
             }
             Utf32String::Unicode(needle_.into_boxed_slice())
         };
-        Atom {
+        Self {
             kind,
             needle,
             negative: false,
@@ -239,7 +239,7 @@ impl Atom {
     /// Parse a pattern atom from a string. Some special trailing and leading
     /// characters can be used to control the atom kind. See [`AtomKind`] for
     /// details.
-    pub fn parse(raw: &str, case: CaseMatching, normalize: Normalization) -> Atom {
+    pub fn parse(raw: &str, case: CaseMatching, normalize: Normalization) -> Self {
         let mut atom = raw;
         let invert = match atom.as_bytes() {
             [b'!', ..] => {
@@ -290,7 +290,7 @@ impl Atom {
             kind = AtomKind::Substring
         }
 
-        let mut pattern = Atom::new_inner(atom, case, normalize, kind, true, append_dollar);
+        let mut pattern = Self::new_inner(atom, case, normalize, kind, true, append_dollar);
         pattern.negative = invert;
         pattern
     }
@@ -429,27 +429,27 @@ impl Pattern {
         case_matching: CaseMatching,
         normalize: Normalization,
         kind: AtomKind,
-    ) -> Pattern {
+    ) -> Self {
         let atoms = pattern_atoms(pattern)
             .filter_map(|pat| {
                 let pat = Atom::new(pat, case_matching, normalize, kind, true);
                 (!pat.needle.is_empty()).then_some(pat)
             })
             .collect();
-        Pattern { atoms }
+        Self { atoms }
     }
     /// Creates a pattern where each word is matched individually (whitespaces
     /// can be escaped with `\`). And `$`, `!`, `'` and `^` at word boundaries will
     /// cause different matching behaviour (see [`AtomKind`]). These can be
     /// escaped with backslash.
-    pub fn parse(pattern: &str, case_matching: CaseMatching, normalize: Normalization) -> Pattern {
+    pub fn parse(pattern: &str, case_matching: CaseMatching, normalize: Normalization) -> Self {
         let atoms = pattern_atoms(pattern)
             .filter_map(|pat| {
                 let pat = Atom::parse(pat, case_matching, normalize);
                 (!pat.needle.is_empty()).then_some(pat)
             })
             .collect();
-        Pattern { atoms }
+        Self { atoms }
     }
 
     /// Convenience function to easily match (and sort) a (relatively small)

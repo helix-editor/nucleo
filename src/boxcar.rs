@@ -50,7 +50,7 @@ pub(crate) struct Vec<T> {
 
 impl<T> Vec<T> {
     /// Constructs a new, empty `Vec<T>` with the specified capacity and matcher columns.
-    pub fn with_capacity(capacity: u32, columns: u32) -> Vec<T> {
+    pub fn with_capacity(capacity: u32, columns: u32) -> Self {
         assert_ne!(columns, 0, "there must be atleast one matcher column");
         let init = match capacity {
             0 => 0,
@@ -65,7 +65,7 @@ impl<T> Vec<T> {
             *bucket = unsafe { Bucket::alloc(len, columns) };
         }
 
-        Vec {
+        Self {
             buckets: buckets.map(Bucket::new),
             inflight: AtomicU64::new(0),
             columns,
@@ -147,7 +147,7 @@ impl<T> Vec<T> {
         // eagerly allocate the next bucket if we are close to the end of this one
         if index == (location.bucket_len - (location.bucket_len >> 3)) {
             if let Some(next_bucket) = self.buckets.get(location.bucket as usize + 1) {
-                Vec::get_or_alloc(next_bucket, location.bucket_len << 1, self.columns);
+                Self::get_or_alloc(next_bucket, location.bucket_len << 1, self.columns);
             }
         }
 
@@ -157,7 +157,7 @@ impl<T> Vec<T> {
 
         // the bucket has not been allocated yet
         if entries.is_null() {
-            entries = Vec::get_or_alloc(bucket, location.bucket_len, self.columns);
+            entries = Self::get_or_alloc(bucket, location.bucket_len, self.columns);
         }
 
         unsafe {
@@ -218,14 +218,14 @@ impl<T> Vec<T> {
         {
             // This might be the last bucket, hence the check
             if let Some(next_bucket) = self.buckets.get(end_location.bucket as usize + 1) {
-                Vec::get_or_alloc(next_bucket, end_location.bucket_len << 1, self.columns);
+                Self::get_or_alloc(next_bucket, end_location.bucket_len << 1, self.columns);
             }
         }
 
         let mut bucket = unsafe { self.buckets.get_unchecked(start_location.bucket as usize) };
         let mut entries = bucket.entries.load(Ordering::Acquire);
         if entries.is_null() {
-            entries = Vec::get_or_alloc(
+            entries = Self::get_or_alloc(
                 bucket,
                 Location::bucket_len(start_location.bucket),
                 self.columns,
@@ -249,7 +249,7 @@ impl<T> Vec<T> {
                 entries = bucket.entries.load(Ordering::Acquire);
 
                 if entries.is_null() {
-                    entries = Vec::get_or_alloc(
+                    entries = Self::get_or_alloc(
                         bucket,
                         Location::bucket_len(location.bucket),
                         self.columns,
@@ -531,7 +531,7 @@ impl<T> Bucket<T> {
         let layout = Entry::<T>::layout(cols);
         let arr_layout = Self::layout(len, layout);
         for i in 0..len {
-            let entry = Bucket::get(entries, i, cols);
+            let entry = Self::get(entries, i, cols);
             if *(*entry).active.get_mut() {
                 ptr::drop_in_place((*(*entry).slot.get()).as_mut_ptr());
                 for matcher_col in Entry::matcher_cols_raw(entry, cols) {
@@ -548,8 +548,8 @@ impl<T> Bucket<T> {
         ptr.add(layout.size() * idx as usize) as *mut Entry<T>
     }
 
-    fn new(entries: *mut Entry<T>) -> Bucket<T> {
-        Bucket {
+    fn new(entries: *mut Entry<T>) -> Self {
+        Self {
             entries: AtomicPtr::new(entries),
         }
     }
@@ -573,7 +573,7 @@ impl<T> Entry<T> {
     }
 
     unsafe fn matcher_cols_raw<'a>(
-        ptr: *mut Entry<T>,
+        ptr: *mut Self,
         cols: u32,
     ) -> &'a [UnsafeCell<MaybeUninit<Utf32String>>] {
         // this whole thing looks weird. The reason we do this is that
@@ -585,7 +585,7 @@ impl<T> Entry<T> {
         slice::from_raw_parts(ptr, cols as usize)
     }
 
-    unsafe fn matcher_cols_mut<'a>(ptr: *mut Entry<T>, cols: u32) -> &'a mut [Utf32String] {
+    unsafe fn matcher_cols_mut<'a>(ptr: *mut Self, cols: u32) -> &'a mut [Utf32String] {
         // this whole thing looks weird. The reason we do this is that
         // we must make sure the pointer retains its provenance which may (or may not?)
         // be lost if we used tail.as_ptr()
@@ -597,7 +597,7 @@ impl<T> Entry<T> {
     // # Safety
     //
     // Value must be initialized.
-    unsafe fn read<'a>(ptr: *mut Entry<T>, cols: u32) -> Item<'a, T> {
+    unsafe fn read<'a>(ptr: *mut Self, cols: u32) -> Item<'a, T> {
         // this whole thing looks weird. The reason we do this is that
         // we must make sure the pointer retains its provenance which may (or may not?)
         // be lost if we used tail.as_ptr()
@@ -629,14 +629,14 @@ const SKIP: u32 = 32;
 const SKIP_BUCKET: u32 = (u32::BITS - SKIP.leading_zeros()) - 1;
 
 impl Location {
-    fn of(index: u32) -> Location {
+    fn of(index: u32) -> Self {
         let skipped = index.checked_add(SKIP).expect("exceeded maximum length");
         let bucket = u32::BITS - skipped.leading_zeros();
         let bucket = bucket - (SKIP_BUCKET + 1);
-        let bucket_len = Location::bucket_len(bucket);
+        let bucket_len = Self::bucket_len(bucket);
         let entry = skipped ^ bucket_len;
 
-        Location {
+        Self {
             bucket,
             bucket_len,
             entry,
@@ -780,7 +780,7 @@ mod tests {
     fn extend_over_max_capacity() {
         let vec = Vec::<u32>::with_capacity(1, 1);
         let count = MAX_ENTRIES as usize + 2;
-        let iter = std::iter::repeat(0).take(count);
+        let iter = std::iter::repeat_n(0, count);
         assert!(std::panic::catch_unwind(|| vec.extend(iter, |_, _| {})).is_err());
     }
 }
