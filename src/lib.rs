@@ -391,7 +391,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
     /// The main way to interact with the matcher, this should be called
     /// regularly (for example each time a frame is rendered). To avoid
     /// excessive redraws this method will wait `timeout` milliseconds for the
-    /// worker therad to finish. It is recommend to set the timeout to 10ms.
+    /// worker thread to finish. It is recommend to set the timeout to 10ms.
     pub fn tick(&mut self, timeout: u64) -> Status {
         self.should_notify.store(false, atomic::Ordering::Relaxed);
         let status = self.pattern.status();
