@@ -50,6 +50,8 @@ impl MultiPattern {
         append: bool,
     ) {
         let old_status = self.cols[column].1;
+        // Switch to is_none_or() in MSRV 1.82
+        #[allow(clippy::unnecessary_map_or)]
         if append
             && old_status != Status::Rescore
             && self.cols[column]
