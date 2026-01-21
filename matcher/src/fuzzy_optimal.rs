@@ -36,7 +36,7 @@ impl Matcher {
         if !matched {
             assert!(
                 !N::ASCII || !H::ASCII,
-                "should have been caught by prefilter"
+                "Non-match should have been caught by prefilter. Maybe `needle` is not normalized?"
             );
             return None;
         }
