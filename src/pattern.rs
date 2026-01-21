@@ -41,6 +41,7 @@ impl MultiPattern {
     /// to the previous `reparse` invocation is a prefix of `new_text`. This enables
     /// additional optimizations but can lead to missing matches if an incorrect value
     /// is passed.
+    #[allow(clippy::unnecessary_map_or)]
     pub fn reparse(
         &mut self,
         column: usize,
@@ -52,11 +53,15 @@ impl MultiPattern {
         let old_status = self.cols[column].1;
         if append
             && old_status != Status::Rescore
-            && self.cols[column]
-                .0
-                .atoms
-                .last()
-                .map_or(true, |last| !last.negative)
+                // must be rescored if the atom is negative or if there is a
+                // trailing `\`
+            && self.cols[column].0.atoms.last().map_or(true, |last| {
+                !last.negative
+                    && last
+                        .needle_text()
+                        .chars()
+                        .next_back() != Some('\\')
+            })
         {
             self.cols[column].1 = Status::Update;
         } else {

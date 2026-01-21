@@ -11,4 +11,16 @@ fn append() {
     assert_eq!(pat.status(), Status::Update);
     pat.reparse(0, "!fo", CaseMatching::Smart, Normalization::Smart, true);
     assert_eq!(pat.status(), Status::Rescore);
+
+    let mut pat = MultiPattern::new(1);
+    pat.reparse(0, "a\\\\", CaseMatching::Smart, Normalization::Smart, true);
+    assert_eq!(pat.status(), Status::Update);
+    pat.reparse(
+        0,
+        "a\\\\\\\\",
+        CaseMatching::Smart,
+        Normalization::Smart,
+        true,
+    );
+    assert_eq!(pat.status(), Status::Rescore);
 }

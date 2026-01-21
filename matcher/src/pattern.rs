@@ -124,17 +124,30 @@ impl Atom {
             normalize = false;
         }
         let needle = if needle.is_ascii() {
-            let mut needle = if escape_whitespace {
-                if let Some((start, rem)) = needle.split_once("\\ ") {
-                    let mut needle = start.to_owned();
-                    for rem in rem.split("\\ ") {
-                        needle.push(' ');
-                        needle.push_str(rem);
+            let mut needle_string = if escape_whitespace {
+                let mut needle_bytes = Vec::with_capacity(needle.len());
+                let mut saw_backslash = false;
+                for c in needle.bytes() {
+                    if saw_backslash {
+                        if c.is_ascii_whitespace() {
+                            needle_bytes.push(c);
+                            saw_backslash = false;
+                            continue;
+                        } else {
+                            needle_bytes.push(b'\\');
+                        }
                     }
-                    needle
-                } else {
-                    needle.to_owned()
+                    saw_backslash = c == b'\\';
+                    if !saw_backslash {
+                        needle_bytes.push(c);
+                    }
                 }
+                // push the potentially trailing backslash
+                if saw_backslash {
+                    needle_bytes.push(b'\\');
+                }
+                // SAFETY: we just checked that needle is ascii, so each `c` is a valid ASCII byte
+                unsafe { String::from_utf8_unchecked(needle_bytes) }
             } else {
                 needle.to_owned()
             };
@@ -143,18 +156,19 @@ impl Atom {
                 #[cfg(feature = "unicode-casefold")]
                 CaseMatching::Ignore => {
                     ignore_case = true;
-                    needle.make_ascii_lowercase()
+                    needle_string.make_ascii_lowercase()
                 }
                 #[cfg(feature = "unicode-casefold")]
                 CaseMatching::Smart => {
-                    ignore_case = !needle.bytes().any(|b| b.is_ascii_uppercase())
+                    ignore_case = !needle_string.bytes().any(|b| b.is_ascii_uppercase())
                 }
                 CaseMatching::Respect => ignore_case = false,
             }
+
             if append_dollar {
-                needle.push('$');
+                needle_string.push('$');
             }
-            Utf32String::Ascii(needle.into_boxed_str())
+            Utf32String::Ascii(needle_string.into_boxed_str())
         } else {
             let mut needle_ = Vec::with_capacity(needle.len());
             #[cfg(feature = "unicode-casefold")]
@@ -173,8 +187,8 @@ impl Atom {
                 let mut saw_backslash = false;
                 for mut c in chars::graphemes(needle) {
                     if saw_backslash {
-                        if c == ' ' {
-                            needle_.push(' ');
+                        if c.is_whitespace() {
+                            needle_.push(c);
                             saw_backslash = false;
                             continue;
                         } else {
@@ -182,23 +196,29 @@ impl Atom {
                         }
                     }
                     saw_backslash = c == '\\';
-                    match case {
-                        #[cfg(feature = "unicode-casefold")]
-                        CaseMatching::Ignore => c = chars::to_lower_case(c),
-                        #[cfg(feature = "unicode-casefold")]
-                        CaseMatching::Smart => {
-                            ignore_case = ignore_case && !chars::is_upper_case(c)
+                    if !saw_backslash {
+                        match case {
+                            #[cfg(feature = "unicode-casefold")]
+                            CaseMatching::Ignore => c = chars::to_lower_case(c),
+                            #[cfg(feature = "unicode-casefold")]
+                            CaseMatching::Smart => {
+                                ignore_case = ignore_case && !chars::is_upper_case(c)
+                            }
+                            CaseMatching::Respect => (),
                         }
-                        CaseMatching::Respect => (),
-                    }
-                    match normalization {
-                        #[cfg(feature = "unicode-normalization")]
-                        Normalization::Smart => {
-                            normalize = normalize && chars::normalize(c) == c;
+                        match normalization {
+                            #[cfg(feature = "unicode-normalization")]
+                            Normalization::Smart => {
+                                normalize = normalize && chars::normalize(c) == c;
+                            }
+                            Normalization::Never => (),
                         }
-                        Normalization::Never => (),
+                        needle_.push(c);
                     }
-                    needle_.push(c);
+                }
+                // push the potentially trailing backslash
+                if saw_backslash {
+                    needle_.push('\\');
                 }
             } else {
                 let chars = chars::graphemes(needle).map(|mut c| {
