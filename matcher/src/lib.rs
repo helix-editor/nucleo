@@ -126,7 +126,7 @@ use crate::matrix::MatrixSlab;
 /// may fail to produce a match. The [`pattern`] modules provides utilities
 /// to preprocess needles and **should usually be preferred over invoking the
 /// matcher directly**.  Additionally it's recommend to perform separate matches
-/// for each word in the needle. Consider the folloling example:
+/// for each word in the needle. Consider the following example:
 ///
 /// If `foo bar` is used as the needle it matches both `foo test baaar` and
 /// `foo hello-world bar`. However, `foo test baaar` will receive a higher
