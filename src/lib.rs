@@ -58,7 +58,7 @@ pub struct Item<'a, T> {
 /// and sent across threads.
 pub struct Injector<T> {
     items: Arc<boxcar::Vec<T>>,
-    notify: Arc<(dyn Fn() + Sync + Send)>,
+    notify: Arc<dyn Fn() + Sync + Send>,
 }
 
 impl<T> Clone for Injector<T> {
@@ -84,10 +84,10 @@ impl<T> Injector<T> {
     ///
     /// You should favor this function over `push` if at least one of the following is true:
     /// - the number of items you're adding can be computed beforehand and is typically larger
-    ///     than 1k
+    ///   than 1k
     /// - you're able to batch incoming items
     /// - you're adding items from multiple threads concurrently (this function results in less
-    ///     contention)
+    ///   contention)
     pub fn extend<I>(&self, values: I, fill_columns: impl Fn(&T, &mut [Utf32String]))
     where
         I: IntoIterator<Item = T> + ExactSizeIterator,
@@ -283,7 +283,7 @@ pub struct Nucleo<T: Sync + Send + 'static> {
     pool: ThreadPool,
     state: State,
     items: Arc<boxcar::Vec<T>>,
-    notify: Arc<(dyn Fn() + Sync + Send)>,
+    notify: Arc<dyn Fn() + Sync + Send>,
     snapshot: Snapshot<T>,
     /// The pattern matched by this matcher. To update the match pattern
     /// [`MultiPattern::reparse`](`pattern::MultiPattern::reparse`) should be used.
@@ -308,7 +308,7 @@ impl<T: Sync + Send + 'static> Nucleo<T> {
     /// number of columns cannot be changed after construction.
     pub fn new(
         config: Config,
-        notify: Arc<(dyn Fn() + Sync + Send)>,
+        notify: Arc<dyn Fn() + Sync + Send>,
         num_threads: Option<usize>,
         columns: u32,
     ) -> Self {
