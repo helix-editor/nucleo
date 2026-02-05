@@ -50,6 +50,10 @@ impl MultiPattern {
         append: bool,
     ) {
         let old_status = self.cols[column].1;
+
+        // The `map_or` can be replaced by `is_none_or` but it's not part of
+        // Rust 1.65, which the minimum supported Rust version.
+        #[allow(clippy::unnecessary_map_or)]
         if append
             && old_status != Status::Rescore
             && self.cols[column]
