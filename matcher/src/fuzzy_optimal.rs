@@ -42,7 +42,7 @@ impl Matcher {
         }
 
         // populate the matrix and find the best score
-        let matrix_len = matrix.populate_matrix::<INDICES, _>(needle);
+        let matrix_len = matrix.populate_matrix::<INDICES, _>(needle, &self.config);
         let last_row_off = matrix.row_offs[needle.len() - 1];
         let relative_last_row_off = last_row_off as usize + 1 - needle.len();
         let (match_end, match_score_cell) = matrix.current_row[relative_last_row_off..]
@@ -119,7 +119,14 @@ impl<H: Char> MatcherDataView<'_, H> {
         H: PartialEq<N>,
     {
         let mut row_iter = needle.iter().copied().zip(self.row_offs.iter_mut());
-        let (mut needle_char, mut row_start) = row_iter.next().unwrap();
+        let (raw_needle_char, mut row_start) = row_iter.next().unwrap();
+        // Normalize each needle char before comparing it to the (already
+        // normalized) haystack char below. Callers are not required to
+        // pre-normalize the needle — the matcher does it here so that a
+        // mixed-case needle like "Thunder" matches a haystack like
+        // "Thunderbird" under `ignore_case = true` without panicking in
+        // the "Non-match should have been caught by prefilter" branch.
+        let mut needle_char = raw_needle_char.normalize(config);
 
         let col_iter = self
             .haystack
@@ -140,9 +147,10 @@ impl<H: Char> MatcherDataView<'_, H> {
             let i = i as u16;
             if c == needle_char {
                 // save the first idx of each char
-                if let Some(next) = row_iter.next() {
+                if let Some((raw_next_needle_char, next_row_start)) = row_iter.next() {
                     *row_start = i;
-                    (needle_char, row_start) = next;
+                    needle_char = raw_next_needle_char.normalize(config);
+                    row_start = next_row_start;
                 } else if !matched {
                     *row_start = i;
                     // we have atleast one match
@@ -162,8 +170,8 @@ impl<H: Char> MatcherDataView<'_, H> {
             0,
             self.row_offs[1],
             0,
-            needle[0],
-            needle[1],
+            needle[0].normalize(config),
+            needle[1].normalize(config),
             if config.prefer_prefix {
                 if start == 0 {
                     MAX_PREFIX_BONUS * PREFIX_BONUS_SCALE
@@ -266,18 +274,27 @@ impl<H: Char> MatcherDataView<'_, H> {
         }
     }
 
-    fn populate_matrix<const INDICES: bool, N: Char>(&mut self, needle: &[N]) -> usize
+    fn populate_matrix<const INDICES: bool, N: Char>(
+        &mut self,
+        needle: &[N],
+        config: &Config,
+    ) -> usize
     where
         H: PartialEq<N>,
     {
         let mut matrix_cells = &mut self.matrix_cells[self.current_row.len()..];
+        // Normalize needle chars at the seam so `score_row` can keep doing a
+        // raw equality check against the (already normalized) haystack cell.
+        // See the matching note in `setup` for why this lives here.
         let mut row_iter = needle[1..]
             .iter()
             .copied()
             .zip(self.row_offs[1..].iter().copied())
             .enumerate();
-        let (mut needle_idx, (mut needle_char, mut row_off)) = row_iter.next().unwrap();
-        for (next_needle_idx, (next_needle_char, next_row_off)) in row_iter {
+        let (mut needle_idx, (raw_needle_char, mut row_off)) = row_iter.next().unwrap();
+        let mut needle_char = raw_needle_char.normalize(config);
+        for (next_needle_idx, (raw_next_needle_char, next_row_off)) in row_iter {
+            let next_needle_char = raw_next_needle_char.normalize(config);
             Self::score_row::<false, INDICES, _>(
                 self.current_row,
                 matrix_cells,

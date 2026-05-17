@@ -95,8 +95,11 @@ impl Matcher {
             .checked_sub(1)
             .map(|i| haystack[i].char_class(&self.config))
             .unwrap_or(self.config.initial_char_class);
+        // Normalize each needle char as it's consumed so mixed-case needles
+        // pair correctly with the (already normalized) haystack chars under
+        // `ignore_case`. Mirrors the seam fix in `fuzzy_optimal::setup`.
         let mut needle_iter = needle.iter();
-        let mut needle_char = *needle_iter.next().unwrap();
+        let mut needle_char = needle_iter.next().unwrap().normalize(&self.config);
 
         let mut in_gap = false;
         let mut consecutive = 1;
@@ -109,7 +112,10 @@ impl Matcher {
         let mut first_bonus = self.bonus_for(prev_class, class);
         let mut score = SCORE_MATCH + first_bonus * BONUS_FIRST_CHAR_MULTIPLIER;
         prev_class = class;
-        needle_char = *needle_iter.next().unwrap_or(&needle_char);
+        needle_char = needle_iter
+            .next()
+            .map(|c| c.normalize(&self.config))
+            .unwrap_or(needle_char);
 
         for (i, c) in haystack[start + 1..end].iter().enumerate() {
             let (c, class) = c.char_class_and_normalize(&self.config);
@@ -129,8 +135,8 @@ impl Matcher {
                 score += SCORE_MATCH + bonus;
                 in_gap = false;
                 consecutive += 1;
-                if let Some(&next) = needle_iter.next() {
-                    needle_char = next;
+                if let Some(next) = needle_iter.next() {
+                    needle_char = next.normalize(&self.config);
                 }
             } else {
                 let penalty = if in_gap {

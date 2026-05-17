@@ -245,6 +245,37 @@ fn test_fuzzy() {
     );
 }
 
+/// Regression: a needle that prefix-matches the haystack and whose last
+/// char also appears later in the haystack triggers a panic
+/// (`Non-match should have been caught by prefilter`) when the caller
+/// passes a mixed-case needle and relies on `ignore_case` to do the
+/// folding — `Thunder` vs `Thunderbird` is the canonical case. The
+/// prefilter's reverse scan finds the second `r` in `Thunderbird` and
+/// hands a slab to `fuzzy_match_optimal` that no longer contains the
+/// contiguous prefix it walked.
+///
+/// Direct test against `fuzzy_indices` so the needle is NOT lowercased
+/// by the test harness (which would otherwise mask the bug).
+#[test]
+fn fuzzy_thunderbird_prefix_with_repeating_last_char() {
+    let config = Config {
+        ignore_case: true,
+        ..Config::DEFAULT
+    };
+    let mut matcher = Matcher::new(config);
+    let mut needle_buf = Vec::new();
+    let mut haystack_buf = Vec::new();
+    let haystack = Utf32Str::new("Thunderbird", &mut haystack_buf);
+    let needle = Utf32Str::new("Thunder", &mut needle_buf);
+    let mut indices = Vec::new();
+    let score = matcher.fuzzy_indices(haystack, needle, &mut indices);
+    assert!(
+        score.is_some(),
+        "Thunder must match Thunderbird; got None (or panicked)"
+    );
+    assert_eq!(indices, vec![0, 1, 2, 3, 4, 5, 6]);
+}
+
 #[test]
 fn empty_needle() {
     assert_matches(
