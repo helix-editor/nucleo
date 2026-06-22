@@ -777,6 +777,7 @@ mod tests {
 
     // test |values| does not fit in the boxcar
     #[test]
+    #[allow(clippy::manual_repeat_n)]
     fn extend_over_max_capacity() {
         let vec = Vec::<u32>::with_capacity(1, 1);
         let count = MAX_ENTRIES as usize + 2;
