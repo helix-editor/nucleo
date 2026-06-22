@@ -27,8 +27,8 @@ pub(crate) trait Char: Copy + Eq + Ord + fmt::Display {
 pub(crate) struct AsciiChar(pub u8);
 
 impl AsciiChar {
-    pub fn cast(bytes: &[u8]) -> &[AsciiChar] {
-        unsafe { &*(bytes as *const [u8] as *const [AsciiChar]) }
+    pub fn cast(bytes: &[u8]) -> &[Self] {
+        unsafe { &*(bytes as *const [u8] as *const [Self]) }
     }
 }
 
@@ -40,7 +40,7 @@ impl fmt::Display for AsciiChar {
 
 impl PartialEq<AsciiChar> for char {
     fn eq(&self, other: &AsciiChar) -> bool {
-        other.0 as char == *self
+        other.0 as Self == *self
     }
 }
 
@@ -111,7 +111,7 @@ impl Char for char {
     fn char_class_and_normalize(mut self, config: &Config) -> (Self, CharClass) {
         if self.is_ascii() {
             let (c, class) = AsciiChar(self as u8).char_class_and_normalize(config);
-            return (c.0 as char, class);
+            return (c.0 as Self, class);
         }
         let char_class = char_class_non_ascii(self);
         #[cfg(feature = "unicode-casefold")]

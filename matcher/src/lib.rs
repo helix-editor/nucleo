@@ -158,7 +158,7 @@ pub struct Matcher {
 // this is just here for convenience not sure if we should implement this
 impl Clone for Matcher {
     fn clone(&self) -> Self {
-        Matcher {
+        Self {
             config: self.config.clone(),
             slab: MatrixSlab::new(),
         }
@@ -175,7 +175,7 @@ impl std::fmt::Debug for Matcher {
 
 impl Default for Matcher {
     fn default() -> Self {
-        Matcher {
+        Self {
             config: Config::DEFAULT,
             slab: MatrixSlab::new(),
         }
