@@ -780,6 +780,8 @@ mod tests {
     fn extend_over_max_capacity() {
         let vec = Vec::<u32>::with_capacity(1, 1);
         let count = MAX_ENTRIES as usize + 2;
+        // Switch to repeat_n() in MSRV 1.82
+        #[allow(clippy::manual_repeat_n)]
         let iter = std::iter::repeat(0).take(count);
         assert!(std::panic::catch_unwind(|| vec.extend(iter, |_, _| {})).is_err());
     }

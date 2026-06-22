@@ -28,7 +28,7 @@ fn checkout_linux_if_needed() {
             .stdout(std::process::Stdio::inherit())
             .status()
             .expect("failed to git clone linux");
-        println!("did git clone linux...{:?}", output);
+        println!("did git clone linux...{output:?}");
     }
 }
 
