@@ -335,7 +335,7 @@ impl Utf32String {
     /// Creates a slice with a string that contains the characters in
     /// the specified **character range**.
     #[inline]
-    pub fn slice(&self, range: impl RangeBounds<usize>) -> Utf32Str {
+    pub fn slice(&self, range: impl RangeBounds<usize>) -> Utf32Str<'_> {
         let start = match range.start_bound() {
             Bound::Included(&start) => start,
             Bound::Excluded(&start) => start + 1,
@@ -355,7 +355,7 @@ impl Utf32String {
     /// Same as `slice` but accepts a u32 range for convenience since
     /// those are the indices returned by the matcher.
     #[inline]
-    pub fn slice_u32(&self, range: impl RangeBounds<u32>) -> Utf32Str {
+    pub fn slice_u32(&self, range: impl RangeBounds<u32>) -> Utf32Str<'_> {
         let start = match range.start_bound() {
             Bound::Included(&start) => start,
             Bound::Excluded(&start) => start + 1,

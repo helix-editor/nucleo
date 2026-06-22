@@ -35,7 +35,7 @@ pub(crate) struct Worker<T: Sync + Send + 'static> {
     pub(crate) should_notify: Arc<AtomicBool>,
     pub(crate) was_canceled: bool,
     pub(crate) last_snapshot: u32,
-    notify: Arc<(dyn Fn() + Sync + Send)>,
+    notify: Arc<dyn Fn() + Sync + Send>,
     pub(crate) items: Arc<boxcar::Vec<T>>,
     in_flight: Vec<u32>,
 }
@@ -59,7 +59,7 @@ impl<T: Sync + Send + 'static> Worker<T> {
     pub(crate) fn new(
         worker_threads: Option<usize>,
         config: Config,
-        notify: Arc<(dyn Fn() + Sync + Send)>,
+        notify: Arc<dyn Fn() + Sync + Send>,
         cols: u32,
     ) -> (ThreadPool, Self) {
         let worker_threads = worker_threads
