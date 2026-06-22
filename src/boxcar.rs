@@ -186,15 +186,17 @@ impl<T> Vec<T> {
     /// Extends the vector by appending multiple elements at once.
     pub fn extend<I>(&self, values: I, fill_columns: impl Fn(&T, &mut [Utf32String]))
     where
-        I: IntoIterator<Item = T> + ExactSizeIterator,
+        I: IntoIterator<Item = T>,
+        <I as IntoIterator>::IntoIter: ExactSizeIterator,
     {
+        let mut values = values.into_iter();
         let count: u32 = values
             .len()
             .try_into()
             .expect("overflowed maximum capacity");
         if count == 0 {
             assert!(
-                values.into_iter().next().is_none(),
+                values.next().is_none(),
                 "The `values` variable reported incorrect length."
             );
             return;
