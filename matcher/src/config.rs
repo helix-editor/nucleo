@@ -26,6 +26,12 @@ pub struct Config {
     /// match. For a full fzf-like fuzzy matcher/picker word segmentation and
     /// explicit prefix literals should be used instead.
     pub prefer_prefix: bool,
+    /// Whether to add a bonus for needle characters that also match within the
+    /// haystack's last path segment (its basename). The bonus is the matcher's
+    /// own score for the needle against that segment alone, so a candidate
+    /// whose filename matches is ranked above siblings that only match in a
+    /// shared parent directory. Mirrors fzf's `--scheme=path`.
+    pub prefer_basename: bool,
 }
 
 impl Config {
@@ -40,6 +46,7 @@ impl Config {
             normalize: true,
             ignore_case: true,
             prefer_prefix: false,
+            prefer_basename: false,
         }
     };
 }
@@ -54,6 +61,7 @@ impl Config {
         }
         self.bonus_boundary_white = BONUS_BOUNDARY;
         self.initial_char_class = CharClass::Delimiter;
+        self.prefer_basename = true;
     }
 
     /// Configures the matcher with bonuses appropriate for matching file paths.
@@ -65,6 +73,7 @@ impl Config {
         }
         self.bonus_boundary_white = BONUS_BOUNDARY;
         self.initial_char_class = CharClass::Delimiter;
+        self.prefer_basename = true;
         self
     }
 }

@@ -25,9 +25,9 @@ can contain special characters to control what kind of match is performed (see
 let paths = ["foo/bar", "bar/foo", "foobar"];
 let mut matcher = Matcher::new(Config::DEFAULT.match_paths());
 let matches = Pattern::parse("foo bar", CaseMatching::Ignore, Normalization::Smart).match_list(paths, &mut matcher);
-assert_eq!(matches, vec![("foo/bar", 168), ("bar/foo", 168), ("foobar", 140)]);
+assert_eq!(matches, vec![("foo/bar", 252), ("bar/foo", 252), ("foobar", 140)]);
 let matches = Pattern::parse("^foo bar", CaseMatching::Ignore, Normalization::Smart).match_list(paths, &mut matcher);
-assert_eq!(matches, vec![("foo/bar", 168), ("foobar", 140)]);
+assert_eq!(matches, vec![("foo/bar", 252), ("foobar", 140)]);
 ```
 
 If the pattern should be matched literally (without this special parsing)
@@ -39,10 +39,10 @@ If the pattern should be matched literally (without this special parsing)
 let paths = ["foo/bar", "bar/foo", "foobar"];
 let mut matcher = Matcher::new(Config::DEFAULT.match_paths());
 let matches = Pattern::new("foo bar", CaseMatching::Ignore, Normalization::Smart, AtomKind::Fuzzy).match_list(paths, &mut matcher);
-assert_eq!(matches, vec![("foo/bar", 168), ("bar/foo", 168), ("foobar", 140)]);
+assert_eq!(matches, vec![("foo/bar", 252), ("bar/foo", 252), ("foobar", 140)]);
 let paths = ["^foo/bar", "bar/^foo", "foobar"];
 let matches = Pattern::new("^foo bar", CaseMatching::Ignore, Normalization::Smart, AtomKind::Fuzzy).match_list(paths, &mut matcher);
-assert_eq!(matches, vec![("^foo/bar", 188), ("bar/^foo", 188)]);
+assert_eq!(matches, vec![("bar/^foo", 292), ("^foo/bar", 272)]);
 ```
 
 Word segmentation is performed automatically on any unescaped character for which [`is_whitespace`](char::is_whitespace) returns true.
@@ -182,6 +182,18 @@ impl Default for Matcher {
     }
 }
 
+/// Index one past the final delimiter in `haystack`: the start of its basename
+/// (last path segment). `0` when the haystack contains no delimiter.
+fn basename_start(haystack: Utf32Str<'_>, delimiters: &[u8]) -> usize {
+    let pos = match haystack {
+        Utf32Str::Ascii(bytes) => bytes.iter().rposition(|b| delimiters.contains(b)),
+        Utf32Str::Unicode(chars) => chars
+            .iter()
+            .rposition(|c| c.is_ascii() && delimiters.contains(&(*c as u8))),
+    };
+    pos.map_or(0, |i| i + 1)
+}
+
 impl Matcher {
     /// Creates a new matcher instance, note that this will eagerly allocate a
     /// fairly large chunk of heap memory (around 135KB currently but subject to
@@ -226,6 +238,32 @@ impl Matcher {
     }
 
     fn fuzzy_matcher_impl<const INDICES: bool>(
+        &mut self,
+        haystack_: Utf32Str<'_>,
+        needle_: Utf32Str<'_>,
+        indices: &mut Vec<u32>,
+    ) -> Option<u16> {
+        let score = self.fuzzy_matcher_impl_raw::<INDICES>(haystack_, needle_, indices)?;
+        // Reward a match that also lands in the basename so a file whose name
+        // matches outranks siblings that only match a shared parent directory.
+        // The bonus is the matcher's own score for the needle against that
+        // segment.
+        if !self.config.prefer_basename {
+            return Some(score);
+        }
+        let basename_start = basename_start(haystack_, self.config.delimiter_chars);
+        // No delimiter (basename is the whole haystack) → no relative premium.
+        if basename_start == 0 {
+            return Some(score);
+        }
+        let basename = haystack_.slice(basename_start..);
+        let bonus = self
+            .fuzzy_matcher_impl_raw::<false>(basename, needle_, &mut Vec::new())
+            .unwrap_or(0);
+        Some(score.saturating_add(bonus))
+    }
+
+    fn fuzzy_matcher_impl_raw<const INDICES: bool>(
         &mut self,
         haystack_: Utf32Str<'_>,
         needle_: Utf32Str<'_>,

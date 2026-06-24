@@ -769,3 +769,39 @@ fn umlaut() {
         .match_list(paths, &mut matcher);
     assert_eq!(matches.len(), 2);
 }
+
+/// https://github.com/helix-editor/nucleo/issues/93
+///
+/// A needle whose tail matches the target's *filename* (`muvm-guest`) but only
+/// the shared *directory* (`guest/`) of its siblings must rank the target first.
+/// Without the basename bonus the filename earns no premium, so the candidates
+/// collapse into a tie and the length tiebreak buries the (longest) target.
+#[test]
+fn prefer_basename_breaks_shared_directory_tie() {
+    let target = "crates/muvm/src/guest/bin/muvm-guest.rs";
+    let sibling = "crates/muvm/src/guest/server_worker.rs";
+
+    let score = |matcher: &mut Matcher, hay: &str| -> u32 {
+        let mut buf = Vec::new();
+        Pattern::parse("muvgues", CaseMatching::Smart, Normalization::Smart)
+            .score(Utf32Str::new(hay, &mut buf), matcher)
+            .unwrap()
+    };
+
+    // Default: the two collapse to an exact tie (the bug)
+    let mut plain = Matcher::new(Config::DEFAULT);
+    assert_eq!(score(&mut plain, target), score(&mut plain, sibling));
+
+    // Path scheme: the basename match lifts the target strictly above siblings
+    let mut paths = Matcher::new(Config::DEFAULT.match_paths());
+    assert!(score(&mut paths, target) > score(&mut paths, sibling));
+
+    // A delimiter-less haystack has no basename premium relative to itself, so
+    // the bonus must not fire (no double-counting)
+    let mut basic = Config::DEFAULT;
+    basic.prefer_basename = true;
+    let mut bm = Matcher::new(basic);
+    let mut off = Matcher::new(Config::DEFAULT);
+    let plain_hay = "muvmguestrs";
+    assert_eq!(score(&mut bm, plain_hay), score(&mut off, plain_hay));
+}
