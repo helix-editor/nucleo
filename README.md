@@ -13,7 +13,7 @@ Nucleo also handles Unicode graphemes more correctly. `Fzf` and `skim` both oper
 
 ## Status
 
-Nucleo is used in the helix-editor and therefore has a large user base with lots of real world testing. The core matcher implementation is considered complete and is unlikely to see major changes. The `nucleo-matcher` crate is finished and ready for widespread use, breaking changes should be very rare (a 1.0 release should not be far away).
+Nucleo is used in the helix-editor and [television fuzzy finder](https://github.com/alexpasmantier/television) and therefore has a large user base with lots of real world testing. The core matcher implementation is considered complete and is unlikely to see major changes. The `nucleo-matcher` crate is finished and ready for widespread use, breaking changes should be very rare (a 1.0 release should not be far away).
 
 While the high level `nucleo` crate also works well (and is also used in helix), there are still additional features that will be added in the future. The high level crate also need better documentation and will likely see a few API changes in the future.
 
