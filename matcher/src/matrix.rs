@@ -83,7 +83,7 @@ impl<C: Char> MatrixLayout<C> {
         let matrix = base.add(self.matrix_off) as *mut MatrixCell;
         let matrix = slice_from_raw_parts_mut(
             matrix,
-            (self.haystack_len + 1 - self.needle_len) * self.haystack_len,
+            (self.haystack_len + 1 - self.needle_len) * self.needle_len,
         );
         (haystack, bonus, rows, cells, matrix)
     }

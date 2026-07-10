@@ -153,6 +153,7 @@ pub struct Matcher {
     #[allow(missing_docs)]
     pub config: Config,
     slab: MatrixSlab,
+    indices_scratch: Vec<u32>,
 }
 
 // this is just here for convenience not sure if we should implement this
@@ -161,6 +162,7 @@ impl Clone for Matcher {
         Matcher {
             config: self.config.clone(),
             slab: MatrixSlab::new(),
+            indices_scratch: Vec::new(),
         }
     }
 }
@@ -178,11 +180,20 @@ impl Default for Matcher {
         Matcher {
             config: Config::DEFAULT,
             slab: MatrixSlab::new(),
+            indices_scratch: Vec::new(),
         }
     }
 }
 
 impl Matcher {
+    #[inline]
+    fn with_indices_scratch<R>(&mut self, f: impl FnOnce(&mut Self, &mut Vec<u32>) -> R) -> R {
+        let mut indices = std::mem::take(&mut self.indices_scratch);
+        let result = f(self, &mut indices);
+        self.indices_scratch = indices;
+        result
+    }
+
     /// Creates a new matcher instance, note that this will eagerly allocate a
     /// fairly large chunk of heap memory (around 135KB currently but subject to
     /// change) so matchers should be reused if called often (like in a loop).
@@ -190,6 +201,7 @@ impl Matcher {
         Self {
             config,
             slab: MatrixSlab::new(),
+            indices_scratch: Vec::new(),
         }
     }
 
@@ -203,7 +215,9 @@ impl Matcher {
     /// See the [matcher documentation](crate::Matcher) for more details.
     pub fn fuzzy_match(&mut self, haystack: Utf32Str<'_>, needle: Utf32Str<'_>) -> Option<u16> {
         assert!(haystack.len() <= u32::MAX as usize);
-        self.fuzzy_matcher_impl::<false>(haystack, needle, &mut Vec::new())
+        self.with_indices_scratch(|this, indices| {
+            this.fuzzy_matcher_impl::<false>(haystack, needle, indices)
+        })
     }
 
     /// Find the fuzzy match with the highest score in the `haystack` and
@@ -341,7 +355,9 @@ impl Matcher {
         needle: Utf32Str<'_>,
     ) -> Option<u16> {
         assert!(haystack.len() <= u32::MAX as usize);
-        self.fuzzy_match_greedy_impl::<false>(haystack, needle, &mut Vec::new())
+        self.with_indices_scratch(|this, indices| {
+            this.fuzzy_match_greedy_impl::<false>(haystack, needle, indices)
+        })
     }
 
     /// Greedly find a fuzzy match in the `haystack` and compute its indices.
@@ -440,7 +456,9 @@ impl Matcher {
         haystack: Utf32Str<'_>,
         needle_: Utf32Str<'_>,
     ) -> Option<u16> {
-        self.substring_match_impl::<false>(haystack, needle_, &mut Vec::new())
+        self.with_indices_scratch(|this, indices| {
+            this.substring_match_impl::<false>(haystack, needle_, indices)
+        })
     }
 
     /// Finds the substring match with the highest score in the `haystack` and
@@ -544,13 +562,15 @@ impl Matcher {
         if trailing_space == haystack.len() {
             return None;
         }
-        self.exact_match_impl::<false>(
-            haystack,
-            needle,
-            leading_space,
-            haystack.len() - trailing_space,
-            &mut Vec::new(),
-        )
+        self.with_indices_scratch(|this, indices| {
+            this.exact_match_impl::<false>(
+                haystack,
+                needle,
+                leading_space,
+                haystack.len() - trailing_space,
+                indices,
+            )
+        })
     }
 
     /// Checks whether needle and haystack match exactly and compute the matches indices.
@@ -604,13 +624,15 @@ impl Matcher {
         if haystack.len() - leading_space < needle.len() {
             None
         } else {
-            self.exact_match_impl::<false>(
-                haystack,
-                needle,
-                leading_space,
-                needle.len() + leading_space,
-                &mut Vec::new(),
-            )
+            self.with_indices_scratch(|this, indices| {
+                this.exact_match_impl::<false>(
+                    haystack,
+                    needle,
+                    leading_space,
+                    needle.len() + leading_space,
+                    indices,
+                )
+            })
         }
     }
 
@@ -661,13 +683,15 @@ impl Matcher {
         if haystack.len() - trailing_spaces < needle.len() {
             None
         } else {
-            self.exact_match_impl::<false>(
-                haystack,
-                needle,
-                haystack.len() - needle.len() - trailing_spaces,
-                haystack.len() - trailing_spaces,
-                &mut Vec::new(),
-            )
+            self.with_indices_scratch(|this, indices| {
+                this.exact_match_impl::<false>(
+                    haystack,
+                    needle,
+                    haystack.len() - needle.len() - trailing_spaces,
+                    haystack.len() - trailing_spaces,
+                    indices,
+                )
+            })
         }
     }
 
