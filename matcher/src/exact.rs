@@ -122,23 +122,14 @@ impl Matcher {
                         return None;
                     }
                 }
-                Some(1) => {
+                Some(_) => {
+                    // first letter is not at index 0: search the leading
+                    // non-letter on the full last-valid-start window
                     (max_score, max_pos) = self.substring_match_ascii_with_prefilter(
                         haystack,
                         needle,
                         1,
                         Memchr::new(needle[0], &haystack[..haystack.len() - needle.len() + 1]),
-                    );
-                    if max_score == 0 {
-                        return None;
-                    }
-                }
-                Some(len) => {
-                    (max_score, max_pos) = self.substring_match_ascii_with_prefilter(
-                        haystack,
-                        needle,
-                        1,
-                        memmem::find_iter(&haystack[..haystack.len() - needle.len() + len], needle),
                     );
                     if max_score == 0 {
                         return None;
@@ -236,7 +227,7 @@ impl Matcher {
             .checked_sub(1)
             .map(|i| haystack[i].char_class(&self.config))
             .unwrap_or(self.config.initial_char_class);
-        let end = haystack.len() - needle.len();
+        let end = haystack.len() - needle.len() + 1;
         for (i, &c) in haystack[start..end].iter().enumerate() {
             let (c, char_class) = c.char_class_and_normalize(&self.config);
             if c != needle[0] {
