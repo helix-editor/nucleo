@@ -769,3 +769,78 @@ fn umlaut() {
         .match_list(paths, &mut matcher);
     assert_eq!(matches.len(), 2);
 }
+
+#[test]
+fn test_substring_unicode_suffix() {
+    // Unicode haystack + ASCII needle: the last valid start used to be
+    // excluded (exclusive end was one short), so a suffix match was missed.
+    assert_matches(
+        &[Substring],
+        true,
+        false,
+        false,
+        false,
+        &[
+            ("üfoo", "foo", &[1, 2, 3], 2 * BONUS_CONSECUTIVE),
+            ("éabc", "abc", &[1, 2, 3], 2 * BONUS_CONSECUTIVE),
+            ("你好foo", "foo", &[2, 3, 4], 2 * BONUS_CONSECUTIVE),
+        ],
+    );
+}
+
+#[test]
+fn test_substring_crlf_suffix() {
+    // `\r\n` forces the Unicode Utf32Str path even though every byte is ASCII.
+    let mut matcher = Matcher::new(Config::DEFAULT);
+    let matches = Pattern::parse("'bar", CaseMatching::Smart, Normalization::Smart)
+        .match_list(["foo\r\nbar", "foo\nbar", "bar"], &mut matcher);
+    let items: Vec<_> = matches.iter().map(|(item, _)| *item).collect();
+    assert!(
+        items.contains(&"foo\r\nbar"),
+        "CRLF suffix should match: {items:?}"
+    );
+    assert!(items.contains(&"foo\nbar"), "{items:?}");
+    assert!(items.contains(&"bar"), "{items:?}");
+}
+
+#[test]
+fn test_substring_leading_digits_ignore_case() {
+    // Needle is already lowercase (Matcher ignore_case contract). The first
+    // letter sits at index 2, which used to shrink the memmem window so both
+    // the mixed-case and the all-lowercase haystacks were missed.
+    assert_matches(
+        &[Substring],
+        false,
+        false,
+        false,
+        false,
+        &[
+            (
+                "xx12FOOyy",
+                "12foo",
+                &[2, 3, 4, 5, 6],
+                BONUS_CAMEL123 * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
+            ),
+            (
+                "xx12fooyy",
+                "12foo",
+                &[2, 3, 4, 5, 6],
+                BONUS_CAMEL123 * (BONUS_FIRST_CHAR_MULTIPLIER + 4),
+            ),
+        ],
+    );
+
+    let mut matcher = Matcher::new(Config::DEFAULT);
+    let matches = Pattern::parse("'12foo", CaseMatching::Smart, Normalization::Smart)
+        .match_list(["xx12FOOyy", "xx12fooyy", "nope"], &mut matcher);
+    let items: Vec<_> = matches.iter().map(|(item, _)| *item).collect();
+    assert!(items.contains(&"xx12FOOyy"), "{items:?}");
+    assert!(items.contains(&"xx12fooyy"), "{items:?}");
+    assert!(!items.contains(&"nope"), "{items:?}");
+
+    let matches = Pattern::parse("'2024rep", CaseMatching::Smart, Normalization::Smart)
+        .match_list(["notes/2024REPORT.md", "notes/2024rep.md"], &mut matcher);
+    let items: Vec<_> = matches.iter().map(|(item, _)| *item).collect();
+    assert!(items.contains(&"notes/2024REPORT.md"), "{items:?}");
+    assert!(items.contains(&"notes/2024rep.md"), "{items:?}");
+}
