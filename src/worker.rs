@@ -194,25 +194,31 @@ impl<T: Sync + Send + 'static> Worker<T> {
             self.process_new_items_trivial();
             let matchers = &self.matchers;
             let pattern = &self.pattern;
-            self.matches
+            let rejected: u32 = self
+                .matches
                 .par_iter_mut()
                 .take_any_while(|_| !self.canceled.load(atomic::Ordering::Relaxed))
-                .for_each(|match_| {
-                    if match_.idx == u32::MAX {
-                        debug_assert_eq!(match_.score, 0);
-                        unmatched.fetch_add(1, atomic::Ordering::Relaxed);
-                        return;
-                    }
-                    // safety: in-flight items are never added to the matches
-                    let item = self.items.get_unchecked(match_.idx);
-                    if let Some(score) = pattern.score(item.matcher_columns, matchers.get()) {
-                        match_.score = score;
-                    } else {
-                        unmatched.fetch_add(1, atomic::Ordering::Relaxed);
-                        match_.score = 0;
-                        match_.idx = u32::MAX;
-                    }
-                });
+                .fold(
+                    || 0u32,
+                    |rejected, match_| {
+                        if match_.idx == u32::MAX {
+                            debug_assert_eq!(match_.score, 0);
+                            return rejected + 1;
+                        }
+                        // safety: in-flight items are never added to the matches
+                        let item = self.items.get_unchecked(match_.idx);
+                        if let Some(score) = pattern.score(item.matcher_columns, matchers.get()) {
+                            match_.score = score;
+                            rejected
+                        } else {
+                            match_.score = 0;
+                            match_.idx = u32::MAX;
+                            rejected + 1
+                        }
+                    },
+                )
+                .sum();
+            unmatched.fetch_add(rejected, atomic::Ordering::Relaxed);
         } else {
             self.process_new_items(&unmatched);
         }
