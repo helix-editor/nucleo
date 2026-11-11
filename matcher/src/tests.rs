@@ -769,3 +769,22 @@ fn umlaut() {
         .match_list(paths, &mut matcher);
     assert_eq!(matches.len(), 2);
 }
+
+/// The match spans a long haystack, so the full matrix is built. Its slice
+/// used to be sized `* haystack_len` instead of `* needle_len`, reaching past
+/// the end of the slab from about 370 chars: undefined behaviour that
+/// `cargo miri test` reports, though a normal test run passes either way.
+#[test]
+fn long_haystack_matrix_stays_in_bounds() {
+    let haystack = format!("a{}b", "x".repeat(498));
+    let mut matcher = Matcher::new(Config::DEFAULT);
+    let mut buf = Vec::new();
+    let mut indices = Vec::new();
+    let score = matcher.fuzzy_indices(
+        Utf32Str::new(&haystack, &mut buf),
+        Utf32Str::Ascii(b"ab"),
+        &mut indices,
+    );
+    assert!(score.is_some());
+    assert_eq!(indices, [0, 499]);
+}
